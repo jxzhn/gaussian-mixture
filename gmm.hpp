@@ -64,4 +64,9 @@ public:
      * @param numData 见上
      */
     void fit(const float* data, int numData);
+
+    /**
+     * @brief 析构高斯混合模型对象，释放 malloc 的空间
+     */
+    virtual ~GaussianMixture();
 };

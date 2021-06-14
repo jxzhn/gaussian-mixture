@@ -167,3 +167,12 @@ void GaussianMixture::fit(const float* data, int numData) {
     free(logProbSum);
     free(xSubMu);
 }
+
+/**
+ * @brief 析构高斯混合模型对象，释放 malloc 的空间
+ */
+GaussianMixture::~GaussianMixture() {
+    free(this->weights);
+    free(this->means);
+    free(this->covariances);
+}
