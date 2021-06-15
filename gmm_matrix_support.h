@@ -7,8 +7,12 @@
  * @copyright Copyright (c) 2021
  */
 
-# ifndef GMM_MATRIX_SUPORT_HPP_
-# define GMM_MATRIX_SUPORT_HPP_
+# ifndef GMM_MATRIX_SUPORT_H_
+# define GMM_MATRIX_SUPORT_H_
+
+# ifdef __cplusplus
+extern "C" {
+# endif
 
 /**
  * @brief 求矩阵每一列的均值
@@ -225,5 +229,9 @@ float arrSum(const float* arr, int n);
  * @param dim 
  */
 void dataAverageCovariance(const float* xSubMu, const float* weights, float* buf, int m, int dim);
+
+# ifdef __cplusplus
+} // extern "C"
+# endif
 
 # endif

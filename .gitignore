@@ -1,0 +1,6 @@
+# vscode setting
+.vscode
+# binary executable file
+*.so
+*.dll
+*.out

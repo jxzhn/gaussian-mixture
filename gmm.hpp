@@ -11,7 +11,7 @@
 # include <stdlib.h>
 # include <memory.h>
 # include <math.h>
-# include "gmm_matrix_support.hpp"
+# include "gmm_matrix_support.h"
 
 /**
  * @brief 高斯混合模型实现类

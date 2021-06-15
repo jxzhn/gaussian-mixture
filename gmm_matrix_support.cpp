@@ -7,7 +7,7 @@
  * @copyright Copyright (c) 2021
  */
 
-# include "gmm_matrix_support.hpp"
+# include "gmm_matrix_support.h"
 
 /**
  * @brief 求矩阵每一列的均值
@@ -63,7 +63,11 @@ void dataCovariance(const float* xSubMu, float* buf, int m, int dim) {
  * @param dim 
  */
 void dataAverageCovariance(const float* xSubMu, const float* weights, float* buf, int m, int dim) {
-    float scale = 1.0 / (arrSum(weights, m) + 10 * __FLT_EPSILON__);
+    float scale = 0.0;
+    for (int k = 0; k < m; ++k) {
+        scale += weights[k];
+    }
+    scale = 1.0 / (scale + 10 * __FLT_EPSILON__);
     // TODO: 这个 CPU 访存连续性不是很好，但 CUDA 应该要用这种方式
     for (int i = 0; i < dim; ++i) {
         for (int j = 0; j < dim; ++j) {
