@@ -11,14 +11,24 @@
 # define GMM_MATRIX_SUPORT_HPP_
 
 /**
+ * @brief 求矩阵每一列的均值
+ * 
+ * @param mat 矩阵，大小为 m 行 n 列
+ * @param buf 每一列的均值结果，大小为 n
+ * @param m 
+ * @param n 
+ */
+void matColMean(const float* mat, float* buf, int m, int n);
+
+/**
  * @brief 求数据的协方差
  * 
- * @param data 按行逐个存放的数据，大小为 m 行 dim 列 
+ * @param data 按行逐个存放的数据（已减去均值），大小为 m 行 dim 列 
  * @param buf 协方差结果，大小为 dim 行 dim 列
  * @param m 
  * @param dim 
  */
-void dataCovariance(const float* data, float* buf, int m, int dim);
+void dataCovariance(const float* xSubMu, float* buf, int m, int dim);
 
 /**
  * @brief 为方阵对角线上元素加上 alpha
@@ -203,7 +213,7 @@ void allDivInplace(float* arr, float alpha, int n);
  * @param n 
  * @return float 所有元素之和
  */
-float arrSum(float* arr, int n);
+float arrSum(const float* arr, int n);
 
 /**
  * @brief 求数据的加权协方差

@@ -40,14 +40,23 @@ void GaussianMixture::initParameter(const float* data, int numData) {
     // 选择前 nComponent 个数据作为聚类均值 !! 注意，这里没使用随机法，最好把数据 shuffle 好
     memcpy(this->means, data, sizeof(float) * this->nComponent * this->dim);
 
+    // TODO: 使用事先分配的 buffer 优化 malloc
+    float* mean = (float*)malloc(sizeof(float) * this->dim);
+    float* xSubMu = (float*)malloc(sizeof(float) * numData * this->dim);
+
+    matColMean(data, mean, numData, this->dim);
+    matVecRowSub(data, mean, xSubMu, numData, this->dim);
     // 使用所有数据的协方差初始化聚类协方差
-    dataCovariance(data, this->covariances, numData, this->dim);
+    dataCovariance(xSubMu, this->covariances, numData, this->dim);
     // 加上 minCovar 以保证最小方差
     matDiagAddInplace(this->covariances, this->minCovar, this->dim);
 
     for (int c = 1; c < this->nComponent; ++c) {
         memcpy(this->covariances + c * this->dim * this->dim, this->covariances, sizeof(float) * this->dim * this->dim);
     }
+
+    free(mean);
+    free(xSubMu);
 }
 
 /**
