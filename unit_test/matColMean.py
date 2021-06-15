@@ -15,7 +15,7 @@ output = np.empty(784, dtype=np.float32)
 
 gmm_matrix_support.matColMean(testcase, output, testcase.shape[0], testcase.shape[1])
 
-diff = (output - testcase.mean(axis=0)).max()
+diff = np.abs(output - testcase.mean(axis=0)).max()
 if diff < 1e-5:
     print('test passed.')
 else:

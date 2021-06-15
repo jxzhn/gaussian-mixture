@@ -21,7 +21,7 @@ output = np.empty((784, 784), dtype=np.float32)
 
 gmm_matrix_support.dataAverageCovariance(xSubMu, weights, output, xSubMu.shape[0], xSubMu.shape[1])
 
-diff = (output - answer).max()
+diff = np.abs(output - answer).max()
 if diff < 1e-5:
     print('test passed.')
 else:
