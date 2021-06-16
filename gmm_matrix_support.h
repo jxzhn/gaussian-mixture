@@ -14,6 +14,13 @@
 extern "C" {
 # endif
 
+
+
+# include <stdlib.h>
+# include <string.h>
+# include <math.h>
+
+
 /**
  * @brief 求矩阵每一列的均值
  * 
