@@ -10,15 +10,11 @@
 # ifndef GMM_MATRIX_SUPORT_H_
 # define GMM_MATRIX_SUPORT_H_
 
+# include <math.h>
+
 # ifdef __cplusplus
 extern "C" {
 # endif
-
-
-
-# include <stdlib.h>
-# include <string.h>
-# include <math.h>
 
 
 /**
@@ -51,9 +47,9 @@ void dataCovariance(const float* xSubMu, float* buf, int m, int dim);
 void matDiagAddInplace(float* mat, float alpha, int dim);
 
 /**
- * @brief 对矩阵进行 Cholesky 分解
+ * @brief 对正定的对称方阵进行 Cholesky 分解
  * 
- * @param mat 矩阵，大小为 m 行 m 列
+ * @param mat 正定的对称方阵，大小为 m 行 m 列
  * @param buf 下三角矩阵输出，大小为 m 行 m 列
  * @param m 
  * @param n 

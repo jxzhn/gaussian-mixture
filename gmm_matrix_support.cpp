@@ -18,16 +18,13 @@
  * @param n 
  */
 void matColMean(const float* mat, float* buf, int m, int n) {
+    // TODO: 这个 CPU 访存连续性不是很好，但 CUDA 应该要用这种方式
     for (int j = 0; j < n; ++j) {
-        buf[j] = 0.0;
-    }
-    for (int i = 0; i < m; ++i) {
-        for (int j = 0; j < n; ++j) {
-            buf[j] += mat[i * n + j];
+        float sum = 0.0f;
+        for (int i = 0; i < m; ++i) {
+            sum += mat[i * n + j];
         }
-    }
-    for (int j = 0; j < n; ++j) {
-        buf[j] *= (1.0 / m);
+        buf[j] = sum * (1.0f / m);
     }
 }
 
@@ -82,7 +79,6 @@ void dataAverageCovariance(const float* xSubMu, const float* weights, float* buf
 
 
 
-//TODO: 这里开始 by cc
 /**
  * @brief 为方阵对角线上元素加上 alpha
  * 
@@ -96,24 +92,22 @@ void matDiagAddInplace(float* mat, float alpha, int dim){
     }
 }
 
-
 /**
- * @brief 对矩阵进行 Cholesky 分解
+ * @brief 对正定的对称方阵进行 Cholesky 分解
  * 
- * @param mat 矩阵，大小为 m 行 m 列
+ * @param mat 正定的对称方阵，大小为 m 行 m 列
  * @param buf 下三角矩阵输出，大小为 m 行 m 列
  * @param m 
  * @param n 
  */
 void matCholesky(const float* mat, float* buf, int m){
-// TODO: 测试时只能输入对称正定矩阵
     for(int k = 0; k < m; k++){
         float sum = 0.0f;
         for(int i = 0; i < k; i++){
-            sum += powf(buf[k * m + i], 2);
+            sum += buf[k * m + i] * buf[k * m + i];
         }
         sum = mat[k * m + k] - sum;
-        buf[k * m + k] = sqrtf(sum);
+        buf[k * m + k] = sqrtf(sum > 0.0f ? sum : 0.0f);
         for(int i = k + 1; i < m; i++){
             sum = 0.0f;
             for(int j = 0; j < k; j++){
@@ -137,9 +131,9 @@ void matCholesky(const float* mat, float* buf, int m){
 float sumLog2Diag(const float* mat, int dim){
     float sum = 0.0f;
     for(int i = 0; i < dim; i++){
-        sum += log(mat[i * dim + i]);
+        sum += log2f(mat[i * dim + i]);
     }
-    return sum / log(2);
+    return sum;
 }
 
 
@@ -173,7 +167,7 @@ void rowSumSquare(const float* mat, float* buf, int m, int n){
     for(int i = 0; i < m; i++){
         buf[i] = 0.0f;
         for(int j = 0; j < n; j++){
-            buf[i] += powf(mat[i * n + j], 2);
+            buf[i] += mat[i * n + j] * mat[i * n + j];
         }
     }
 }
@@ -213,26 +207,23 @@ void allMulInplace(float* arr, float alpha, int n){
  * @param n 
  */
 void colLog2SumExp2(const float* mat, float* buf, int m, int n){
-    //TODO:这是按行扫描的，如果要拆成并行的话就改成按列？
-    float* max = (float*)malloc(sizeof(float) * n);
-    memset(max, 0, sizeof(float) * n);
-    //找每列最大值
-    for(int i = 0; i < m; i++){
-        for(int j = 0; j < n; j++){
-            if(mat[i * n + j] > max[j]){
-                max[j] = mat[i * n + j];
+    // TODO: 这个 CPU 访存连续性不是很好，但 CUDA 应该要用这种方式
+    for (int j = 0; j < n; j++) {
+        float maximum = 0.0f;
+        for (int i = 0; i < m; i++) {
+            if (mat[i * n + j] > maximum) {
+                maximum = mat[i * n + j];
             }
         }
+        buf[j] = maximum;
     }
-    //计算logsumexp
-    memset(buf, 0, sizeof(float) * n);
-    for(int i = 0; i < m; i++){
-        for(int j = 0; j < n; j++){
-            buf[j] += powf(2, mat[i * n + j] - max[j]);
+    // 计算 logsumexp
+    for (int j = 0; j < n; j++) {
+        float res = 0.0f;
+        for (int i = 0; i < m; i++) {
+            res += exp2f(mat[i * n + j] - buf[j]);
         }
-    }
-    for(int j = 0; j < n; j++){
-        buf[j] = log(buf[j])/log(2) + max[j];
+        buf[j] += log2f(res);
     }
 }
 
@@ -245,7 +236,7 @@ void colLog2SumExp2(const float* mat, float* buf, int m, int n){
  */
 void allLog2(const float* arr, float* buf, int n){
     for(int i = 0; i < n; i++){
-        buf[i] = log(arr[i]) / log(2);
+        buf[i] = log2f(arr[i]);
     }
 }
 

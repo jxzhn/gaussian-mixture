@@ -19,7 +19,7 @@ output = np.empty((784, 784), dtype=np.float32)
 gmm_matrix_support.dataCovariance(xSubMu, output, xSubMu.shape[0], xSubMu.shape[1])
 
 diff = np.abs(output - answer).max()
-if diff < 1e-5:
+if diff < 1e-3:
     print('test passed.')
 else:
     print('test wrong! maximum difference: {:.6g}'.format(diff))
