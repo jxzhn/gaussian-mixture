@@ -8,6 +8,8 @@
  */
 
 # include "gmm_matrix_support.h"
+# include <iostream>
+
 
 /**
  * @brief 求矩阵每一列的均值
@@ -254,4 +256,158 @@ void matVecColAddInplace(float* mat, const float* vec, int m, int n){
             mat[i * n + j] += vec[i];
         }
     }
+}
+
+
+/**
+ * @brief 求解下三角线性方程组 Ly = b
+ * 
+ * @param lower 下三角矩阵 L，大小为 dim 行 dim 列
+ * @param b n 个待求解的 b 组成的矩阵, 每行为一个 b 向量的转置（大小为 dim）
+ * @param buf n 个解 y 组成的结果矩阵，每行为一个 y 向量的转置（大小为 dim）
+ * @param dim 
+ * @param n 
+ */
+void solveLower(const float* lower, const float* b, float* buf, int dim, int n) {
+    for (int i = 0; i < n; i++) {
+        buf[i*dim + 0] = b[i*dim + 0]/lower[0];
+        for (int j = 1; j < dim; j++) {
+            float sum = 0;
+            for (int k = 0; k < j; k++) {
+                sum += lower[j*dim + k] * buf[i*dim + k];
+            }
+            buf[i*dim + j] = (b[i*dim + j] - sum)/lower[j*dim + j];
+        }
+    }
+}
+
+
+/**
+ * @brief 矩阵向量原地按行减法
+ * 
+ * @param mat 矩阵，大小为 m 行 n 列
+ * @param vec 向量，大小为 1 行 n 列
+ * @param m 
+ * @param n 
+ */
+void matVecRowSubInplace(float* mat, const float* vec, int m, int n) {
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < n; j++) {
+            mat[i*n + j] -= vec[j];
+        }
+    }
+}
+
+/**
+ * @brief 对数组中所有元素取指数(以 2 为底）
+ * 
+ * @param arr 数组，大小为 n
+ * @param n 
+ */
+void allExp2Inplace(float* arr, int n) {
+    for (int i = 0; i < n; i++) {
+        arr[i] = exp2f(arr[i]);
+    }
+}
+
+/**
+ * @brief 求数组中所有元素平均值
+ * 
+ * @param arr 数组，大小为 n
+ * @param n 
+ * @return float 所有元素的平均值
+ */
+float arrMean(float* arr, int n) {
+    float sum = 0;
+    for (int i = 0; i < n; i++) {
+        sum += arr[i];
+    }
+    return sum/n;
+}
+
+/**
+ * @brief 计算矩阵各行的元素之和
+ * 
+ * @param mat 矩阵，大小为 m 行 n 列
+ * @param buf 各行的元素之和，大小为 m
+ * @param m 
+ * @param n 
+ */
+void rowSum(const float* mat, float* buf, int m, int n) {
+    for (int i = 0; i < m; i++) {
+        float sum = 0;
+        for (int j = 0; j < n; j++) {
+            sum += mat[i*n + j];
+        }
+        buf[i] = sum;
+    }
+}
+
+/**
+ * @brief 矩阵乘法
+ * 
+ * @param mat1 矩阵 1，大小为 m 行 n 列
+ * @param mat2 矩阵 2，大小为 n 行 k 列
+ * @param buf 矩阵相乘结果，大小为 m 行 k 列
+ * @param m 
+ * @param n 
+ * @param k 
+ */
+void matMul(const float* mat1, const float* mat2, float* buf, int m, int n, int k) {
+    for (int i = 0; i < m*k; i++) {
+        buf[i] = 0.0;
+    }
+
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < k; j++) {
+            for (int p = 0; p < n; p++) {
+                buf[i*k + j] += mat1[i*n + p] * mat2[p*k + j];
+            }
+        }
+    }
+}
+
+
+/**
+ * @brief 矩阵原地各行除以各自的一个常数
+ * 
+ * @param mat 矩阵，大小为 m 行 n 列
+ * @param alphas 各行对应的常数组成的数组，共 m 个常数
+ * @param m 
+ * @param n 
+ */
+void matPerRowDivInplace(float* mat, const float* alphas, int m, int n) {
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < n; j++) {
+            mat[i*n + j] /= alphas[i];
+        }
+    }
+}
+
+/**
+ * @brief 为数组中所有元素除以 alpha
+ * 
+ * @param arr 数组，大小为 n
+ * @param alpha 一个浮点数
+ * @param n 
+ */
+void allDivInplace(float* arr, float alpha, int n) {
+    for (int i = 0; i < n; i++) {
+        arr[i] /= alpha;
+    }    
+}
+
+/**
+ * @brief 计算数组中所有元素之和
+ * 
+ * @param arr 数组，大小为 n
+ * @param n 
+ * @return float 所有元素之和
+ */
+float arrSum(const float* arr, int n) {
+    float sum = 0;
+    for (int i = 0; i < n; i++) {
+        sum += arr[i];
+    }
+    return sum;
 }

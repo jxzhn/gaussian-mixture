@@ -158,7 +158,6 @@ void matVecRowSubInplace(float* mat, const float* vec, int m, int n);
  * @brief 对数组中所有元素取指数(以 2 为底）
  * 
  * @param arr 数组，大小为 n
- * @param buf 指数结果，大小为 n
  * @param n 
  */
 void allExp2Inplace(float* arr, int n);
