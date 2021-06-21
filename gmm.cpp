@@ -17,13 +17,28 @@
  * @param tol 收敛条件（对数似然值变化小于 tol）
  * @param maxIter 最大迭代次数
  */
-GaussianMixture::GaussianMixture(int dim, int nComponent, float tol = 1e-3, int maxIter = 100)
-    : dim(dim), nComponent(nComponent), tol(tol), maxIter(maxIter)
+GaussianMixture::GaussianMixture(int dim, int nComponent, float tol, int maxIter)
+    : dim(dim), nComponent(nComponent), tol(tol), maxIter(maxIter), memoryMalloced(true)
 {
     this->weights = (float*)malloc(sizeof(float) * nComponent);
     this->means = (float*)malloc(sizeof(float) * nComponent * dim);
     this->covariances = (float*)malloc(sizeof(float) * nComponent * dim * dim);
 }
+
+/**
+ * @brief 构造一个高斯混合模型对象（使用外部指针）
+ * 
+ * @param dim 数据维度
+ * @param nComponent 聚类数量
+ * @param weights 聚类权重所使用的内存地址
+ * @param means 聚类均值所使用的内存地址
+ * @param covariances 聚类协方差所使用的内存地址
+ * @param tol 收敛条件（对数似然值变化小于 tol）
+ * @param maxIter 最大迭代次数
+ */
+GaussianMixture::GaussianMixture(int dim, int nComponent, float* weights, float* means, float* covariances, float tol, int maxIter)
+: dim(dim), nComponent(nComponent), weights(weights), means(means), covariances(covariances), tol(tol), maxIter(maxIter), memoryMalloced(false)
+{}
 
 /**
  * @brief 初始化高斯混合模型的参数
@@ -32,6 +47,9 @@ GaussianMixture::GaussianMixture(int dim, int nComponent, float tol = 1e-3, int 
  * @param numData 见上
  */
 void GaussianMixture::initParameter(const float* data, int numData) {
+    printf("initializing parameters\n");
+    double t1 = wall_time();
+
     // 权重使用均匀分布初始化
     for (int c = 0; c < this->nComponent; ++c) {
         this->weights[c] = 1.0 / this->nComponent;
@@ -57,6 +75,9 @@ void GaussianMixture::initParameter(const float* data, int numData) {
 
     free(mean);
     free(xSubMu);
+
+    double t2 = wall_time();
+    printf("initializing finished in %lf seconds\n", t2 - t1);
 }
 
 /**
@@ -125,6 +146,8 @@ void GaussianMixture::fit(const float* data, int numData) {
     float logLikelihood = INFINITY;
 
     for (int numIter = 0; numIter < this->maxIter; ++numIter) {
+        double t1 = wall_time();
+
         float prevLogLikelihood = logLikelihood;
 
         // E 步
@@ -169,6 +192,9 @@ void GaussianMixture::fit(const float* data, int numData) {
             // 加上 minCovar 以保证最小方差
             matDiagAddInplace(this->covariances + c * this->dim * this->dim, this->minCovar, this->dim);
         }
+
+        double t2 = wall_time();
+        printf("iteration %d finished in %lf seconds\n", numIter, t2 - t1);
     }
 
     free(logWeights);
@@ -181,7 +207,9 @@ void GaussianMixture::fit(const float* data, int numData) {
  * @brief 析构高斯混合模型对象，释放 malloc 的空间
  */
 GaussianMixture::~GaussianMixture() {
-    free(this->weights);
-    free(this->means);
-    free(this->covariances);
+    if (this->memoryMalloced) {
+        free(this->weights);
+        free(this->means);
+        free(this->covariances);
+    }
 }

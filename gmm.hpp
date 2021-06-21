@@ -9,9 +9,16 @@
 
 # include <stdio.h>
 # include <stdlib.h>
+# include <sys/time.h>
 # include <memory.h>
 # include <math.h>
 # include "gmm_matrix_support.h"
+
+inline double wall_time() {
+    timeval t;
+    gettimeofday(&t, NULL);
+    return t.tv_sec + t.tv_usec / 1e6;
+}
 
 /**
  * @brief 高斯混合模型实现类
@@ -28,6 +35,8 @@ private:
     int nComponent; // 聚类数量
     float tol; // 收敛条件（对数似然值变化小于 tol）
     int maxIter; // 最大迭代次数
+
+    bool memoryMalloced; // 判断内存是由构造函数创建的还是外部传进来的
 
     /**
      * @brief 使用随机法初始化高斯混合模型的参数
@@ -56,6 +65,19 @@ public:
      * @param maxIter 最大迭代次数
      */
     GaussianMixture(int dim, int nComponent, float tol = 1e-3, int maxIter = 100);
+
+    /**
+     * @brief 构造一个高斯混合模型对象（使用外部指针）
+     * 
+     * @param dim 数据维度
+     * @param nComponent 聚类数量
+     * @param weights 聚类权重所使用的内存地址
+     * @param means 聚类均值所使用的内存地址
+     * @param covariances 聚类协方差所使用的内存地址
+     * @param tol 收敛条件（对数似然值变化小于 tol）
+     * @param maxIter 最大迭代次数
+     */
+    GaussianMixture(int dim, int nComponent, float* weights, float* means, float* covariances, float tol = 1e-3, int maxIter = 100);
 
     /**
      * @brief 根据数据估计高斯混合模型参数
