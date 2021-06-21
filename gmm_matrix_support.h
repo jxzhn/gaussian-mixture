@@ -25,7 +25,7 @@ extern "C" {
  * @param m 
  * @param n 
  */
-void matColMean(const float* mat, float* buf, int m, int n);
+void matColMean(const double* mat, double* buf, int m, int n);
 
 /**
  * @brief 求数据的协方差
@@ -35,7 +35,7 @@ void matColMean(const float* mat, float* buf, int m, int n);
  * @param m 
  * @param dim 
  */
-void dataCovariance(const float* xSubMu, float* buf, int m, int dim);
+void dataCovariance(const double* xSubMu, double* buf, int m, int dim);
 
 /**
  * @brief 为方阵对角线上元素加上 alpha
@@ -44,7 +44,7 @@ void dataCovariance(const float* xSubMu, float* buf, int m, int dim);
  * @param alpha 一个浮点数
  * @param dim 
  */
-void matDiagAddInplace(float* mat, float alpha, int dim);
+void matDiagAddInplace(double* mat, double alpha, int dim);
 
 /**
  * @brief 对正定的对称方阵进行 Cholesky 分解
@@ -54,16 +54,16 @@ void matDiagAddInplace(float* mat, float alpha, int dim);
  * @param m 
  * @param n 
  */
-void matCholesky(const float* mat, float* buf, int m);
+void matCholesky(const double* mat, double* buf, int m);
 
 /**
  * @brief 计算一个方阵对角线上元素的对数（以 2 为底）之和
  * 
  * @param mat 矩阵，大小为 dim 行 dim 列
  * @param dim 
- * @return float 对角线上元素的对数之和
+ * @return double 对角线上元素的对数之和
  */
-float sumLog2Diag(const float* mat, int dim);
+double sumLog2Diag(const double* mat, int dim);
 
 /**
  * @brief 矩阵向量按行减法
@@ -74,7 +74,7 @@ float sumLog2Diag(const float* mat, int dim);
  * @param m 
  * @param n 
  */
-void matVecRowSub(const float* mat, const float* vec, float* buf, int m, int n);
+void matVecRowSub(const double* mat, const double* vec, double* buf, int m, int n);
 
 /**
  * @brief 求解下三角线性方程组 Ly = b
@@ -85,7 +85,7 @@ void matVecRowSub(const float* mat, const float* vec, float* buf, int m, int n);
  * @param dim 
  * @param n 
  */
-void solveLower(const float* lower, const float* b, float* buf, int dim, int n);
+void solveLower(const double* lower, const double* b, double* buf, int dim, int n);
 
 /**
  * @brief 计算矩阵各行的元素平方之和
@@ -95,7 +95,7 @@ void solveLower(const float* lower, const float* b, float* buf, int dim, int n);
  * @param m 
  * @param n 
  */
-void rowSumSquare(const float* mat, float* buf, int m, int n);
+void rowSumSquare(const double* mat, double* buf, int m, int n);
 
 /**
  * @brief 为数组中所有元素加上 alpha
@@ -104,7 +104,7 @@ void rowSumSquare(const float* mat, float* buf, int m, int n);
  * @param alpha 一个浮点数
  * @param n 
  */
-void allAddInplace(float* arr, float alpha, int n);
+void allAddInplace(double* arr, double alpha, int n);
 
 /**
  * @brief 为数组中所有元素乘上 alpha
@@ -113,7 +113,7 @@ void allAddInplace(float* arr, float alpha, int n);
  * @param alpha 一个浮点数
  * @param n 
  */
-void allMulInplace(float* arr, float alpha, int n);
+void allMulInplace(double* arr, double alpha, int n);
 
 /**
  * @brief 计算矩阵各列的元素的指数之和的对数（指数和对数均以 2 为底）
@@ -123,7 +123,7 @@ void allMulInplace(float* arr, float alpha, int n);
  * @param m 
  * @param n 
  */
-void colLog2SumExp2(const float* mat, float* buf, int m, int n);
+void colLog2SumExp2(const double* mat, double* buf, int m, int n);
 
 /**
  * @brief 对数组中所有元素取对数（以 2 为底）
@@ -132,7 +132,7 @@ void colLog2SumExp2(const float* mat, float* buf, int m, int n);
  * @param buf 对数结果，大小为 n
  * @param n 
  */
-void allLog2(const float* arr, float* buf, int n);
+void allLog2(const double* arr, double* buf, int n);
 
 /**
  * @brief 矩阵向量原地按列加法
@@ -142,7 +142,7 @@ void allLog2(const float* arr, float* buf, int n);
  * @param m 
  * @param n 
  */
-void matVecColAddInplace(float* mat, const float* vec, int m, int n);
+void matVecColAddInplace(double* mat, const double* vec, int m, int n);
 
 /**
  * @brief 矩阵向量原地按行减法
@@ -152,7 +152,7 @@ void matVecColAddInplace(float* mat, const float* vec, int m, int n);
  * @param m 
  * @param n 
  */
-void matVecRowSubInplace(float* mat, const float* vec, int m, int n);
+void matVecRowSubInplace(double* mat, const double* vec, int m, int n);
 
 /**
  * @brief 对数组中所有元素取指数(以 2 为底）
@@ -160,16 +160,16 @@ void matVecRowSubInplace(float* mat, const float* vec, int m, int n);
  * @param arr 数组，大小为 n
  * @param n 
  */
-void allExp2Inplace(float* arr, int n);
+void allExp2Inplace(double* arr, int n);
 
 /**
  * @brief 求数组中所有元素平均值
  * 
  * @param arr 数组，大小为 n
  * @param n 
- * @return float 所有元素的平均值
+ * @return double 所有元素的平均值
  */
-float arrMean(float* arr, int n);
+double arrMean(double* arr, int n);
 
 /**
  * @brief 计算矩阵各行的元素之和
@@ -179,7 +179,7 @@ float arrMean(float* arr, int n);
  * @param m 
  * @param n 
  */
-void rowSum(const float* mat, float* buf, int m, int n);
+void rowSum(const double* mat, double* buf, int m, int n);
 
 /**
  * @brief 矩阵乘法
@@ -191,7 +191,7 @@ void rowSum(const float* mat, float* buf, int m, int n);
  * @param n 
  * @param k 
  */
-void matMul(const float* mat1, const float* mat2, float* buf, int m, int n, int k);
+void matMul(const double* mat1, const double* mat2, double* buf, int m, int n, int k);
 
 /**
  * @brief 矩阵原地各行除以各自的一个常数
@@ -201,7 +201,7 @@ void matMul(const float* mat1, const float* mat2, float* buf, int m, int n, int 
  * @param m 
  * @param n 
  */
-void matPerRowDivInplace(float* mat, const float* alphas, int m, int n);
+void matPerRowDivInplace(double* mat, const double* alphas, int m, int n);
 
 /**
  * @brief 为数组中所有元素除以 alpha
@@ -210,16 +210,16 @@ void matPerRowDivInplace(float* mat, const float* alphas, int m, int n);
  * @param alpha 一个浮点数
  * @param n 
  */
-void allDivInplace(float* arr, float alpha, int n);
+void allDivInplace(double* arr, double alpha, int n);
 
 /**
  * @brief 计算数组中所有元素之和
  * 
  * @param arr 数组，大小为 n
  * @param n 
- * @return float 所有元素之和
+ * @return double 所有元素之和
  */
-float arrSum(const float* arr, int n);
+double arrSum(const double* arr, int n);
 
 /**
  * @brief 求数据的加权协方差
@@ -230,7 +230,7 @@ float arrSum(const float* arr, int n);
  * @param m 
  * @param dim 
  */
-void dataAverageCovariance(const float* xSubMu, const float* weights, float* buf, int m, int dim);
+void dataAverageCovariance(const double* xSubMu, const double* weights, double* buf, int m, int dim);
 
 # ifdef __cplusplus
 } // extern "C"

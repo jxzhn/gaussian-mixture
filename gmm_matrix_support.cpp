@@ -19,14 +19,14 @@
  * @param m 
  * @param n 
  */
-void matColMean(const float* mat, float* buf, int m, int n) {
+void matColMean(const double* mat, double* buf, int m, int n) {
     // TODO: 这个 CPU 访存连续性不是很好，但 CUDA 应该要用这种方式
     for (int j = 0; j < n; ++j) {
-        float sum = 0.0f;
+        double sum = 0.0;
         for (int i = 0; i < m; ++i) {
             sum += mat[i * n + j];
         }
-        buf[j] = sum * (1.0f / m);
+        buf[j] = sum * (1.0 / m);
     }
 }
 
@@ -38,12 +38,12 @@ void matColMean(const float* mat, float* buf, int m, int n) {
  * @param m 
  * @param dim 
  */
-void dataCovariance(const float* xSubMu, float* buf, int m, int dim) {
-    float scale = 1.0 / (m - 1);
+void dataCovariance(const double* xSubMu, double* buf, int m, int dim) {
+    double scale = 1.0 / (m - 1);
     // TODO: 这个 CPU 访存连续性不是很好，但 CUDA 应该要用这种方式
     for (int i = 0; i < dim; ++i) {
         for (int j = 0; j < dim; ++j) {
-            float covar = 0.0;
+            double covar = 0.0;
             for (int k = 0; k < m; ++k) {
                 covar += xSubMu[k * dim + i] * xSubMu[k * dim + j];
             }
@@ -61,16 +61,16 @@ void dataCovariance(const float* xSubMu, float* buf, int m, int dim) {
  * @param m 
  * @param dim 
  */
-void dataAverageCovariance(const float* xSubMu, const float* weights, float* buf, int m, int dim) {
-    float scale = 0.0;
+void dataAverageCovariance(const double* xSubMu, const double* weights, double* buf, int m, int dim) {
+    double scale = 0.0;
     for (int k = 0; k < m; ++k) {
         scale += weights[k];
     }
-    scale = 1.0 / (scale + 10 * __FLT_EPSILON__);
+    scale = 1.0 / (scale + 10 * __DBL_EPSILON__);
     // TODO: 这个 CPU 访存连续性不是很好，但 CUDA 应该要用这种方式
     for (int i = 0; i < dim; ++i) {
         for (int j = 0; j < dim; ++j) {
-            float covar = 0.0;
+            double covar = 0.0;
             for (int k = 0; k < m; ++k) {
                 covar += weights[k] * xSubMu[k * dim + i] * xSubMu[k * dim + j];
             }
@@ -88,7 +88,7 @@ void dataAverageCovariance(const float* xSubMu, const float* weights, float* buf
  * @param alpha 一个浮点数
  * @param dim 
  */
-void matDiagAddInplace(float* mat, float alpha, int dim){
+void matDiagAddInplace(double* mat, double alpha, int dim){
     for(int i = 0; i < dim; i++){
         mat[i * dim + i] += alpha;
     }
@@ -102,16 +102,16 @@ void matDiagAddInplace(float* mat, float alpha, int dim){
  * @param m 
  * @param n 
  */
-void matCholesky(const float* mat, float* buf, int m){
+void matCholesky(const double* mat, double* buf, int m){
     for(int k = 0; k < m; k++){
-        float sum = 0.0f;
+        double sum = 0.0;
         for(int i = 0; i < k; i++){
             sum += buf[k * m + i] * buf[k * m + i];
         }
         sum = mat[k * m + k] - sum;
-        buf[k * m + k] = sqrtf(sum > 0.0f ? sum : 0.0f);
+        buf[k * m + k] = sqrtf(sum > 0.0 ? sum : 0.0);
         for(int i = k + 1; i < m; i++){
-            sum = 0.0f;
+            sum = 0.0;
             for(int j = 0; j < k; j++){
                 sum += buf[i * m + j] * buf[k * m + j];
             }
@@ -128,12 +128,12 @@ void matCholesky(const float* mat, float* buf, int m){
  * 
  * @param mat 矩阵，大小为 dim 行 dim 列
  * @param dim 
- * @return float 对角线上元素的对数之和
+ * @return double 对角线上元素的对数之和
  */
-float sumLog2Diag(const float* mat, int dim){
-    float sum = 0.0f;
+double sumLog2Diag(const double* mat, int dim){
+    double sum = 0.0;
     for(int i = 0; i < dim; i++){
-        sum += log2f(mat[i * dim + i]);
+        sum += log2(mat[i * dim + i]);
     }
     return sum;
 }
@@ -148,7 +148,7 @@ float sumLog2Diag(const float* mat, int dim){
  * @param m 
  * @param n 
  */
-void matVecRowSub(const float* mat, const float* vec, float* buf, int m, int n){
+void matVecRowSub(const double* mat, const double* vec, double* buf, int m, int n){
     for(int i = 0; i < m; i++){
         for(int j = 0; j < n; j++){
             buf[i * n + j] = mat[i * n + j] - vec[j];
@@ -165,9 +165,9 @@ void matVecRowSub(const float* mat, const float* vec, float* buf, int m, int n){
  * @param m 
  * @param n 
  */
-void rowSumSquare(const float* mat, float* buf, int m, int n){
+void rowSumSquare(const double* mat, double* buf, int m, int n){
     for(int i = 0; i < m; i++){
-        buf[i] = 0.0f;
+        buf[i] = 0.0;
         for(int j = 0; j < n; j++){
             buf[i] += mat[i * n + j] * mat[i * n + j];
         }
@@ -181,7 +181,7 @@ void rowSumSquare(const float* mat, float* buf, int m, int n){
  * @param alpha 一个浮点数
  * @param n 
  */
-void allAddInplace(float* arr, float alpha, int n){
+void allAddInplace(double* arr, double alpha, int n){
     for(int i = 0; i < n; i++){
         arr[i] += alpha;
     }
@@ -194,7 +194,7 @@ void allAddInplace(float* arr, float alpha, int n){
  * @param alpha 一个浮点数
  * @param n 
  */
-void allMulInplace(float* arr, float alpha, int n){
+void allMulInplace(double* arr, double alpha, int n){
      for(int i = 0; i < n; i++){
         arr[i] *= alpha;
     }
@@ -208,10 +208,10 @@ void allMulInplace(float* arr, float alpha, int n){
  * @param m 
  * @param n 
  */
-void colLog2SumExp2(const float* mat, float* buf, int m, int n){
+void colLog2SumExp2(const double* mat, double* buf, int m, int n){
     // TODO: 这个 CPU 访存连续性不是很好，但 CUDA 应该要用这种方式
     for (int j = 0; j < n; j++) {
-        float maximum = 0.0f;
+        double maximum = 0.0;
         for (int i = 0; i < m; i++) {
             if (mat[i * n + j] > maximum) {
                 maximum = mat[i * n + j];
@@ -221,11 +221,11 @@ void colLog2SumExp2(const float* mat, float* buf, int m, int n){
     }
     // 计算 logsumexp
     for (int j = 0; j < n; j++) {
-        float res = 0.0f;
+        double res = 0.0;
         for (int i = 0; i < m; i++) {
-            res += exp2f(mat[i * n + j] - buf[j]);
+            res += exp2(mat[i * n + j] - buf[j]);
         }
-        buf[j] += log2f(res);
+        buf[j] += log2(res);
     }
 }
 
@@ -236,9 +236,9 @@ void colLog2SumExp2(const float* mat, float* buf, int m, int n){
  * @param buf 对数结果，大小为 n
  * @param n 
  */
-void allLog2(const float* arr, float* buf, int n){
+void allLog2(const double* arr, double* buf, int n){
     for(int i = 0; i < n; i++){
-        buf[i] = log2f(arr[i]);
+        buf[i] = log2(arr[i]);
     }
 }
 
@@ -250,7 +250,7 @@ void allLog2(const float* arr, float* buf, int n){
  * @param m 
  * @param n 
  */
-void matVecColAddInplace(float* mat, const float* vec, int m, int n){
+void matVecColAddInplace(double* mat, const double* vec, int m, int n){
     for(int i = 0; i < m; i++){
         for(int j = 0; j < n; j++){
             mat[i * n + j] += vec[i];
@@ -268,11 +268,11 @@ void matVecColAddInplace(float* mat, const float* vec, int m, int n){
  * @param dim 
  * @param n 
  */
-void solveLower(const float* lower, const float* b, float* buf, int dim, int n) {
+void solveLower(const double* lower, const double* b, double* buf, int dim, int n) {
     for (int i = 0; i < n; i++) {
         buf[i*dim + 0] = b[i*dim + 0]/lower[0];
         for (int j = 1; j < dim; j++) {
-            float sum = 0;
+            double sum = 0;
             for (int k = 0; k < j; k++) {
                 sum += lower[j*dim + k] * buf[i*dim + k];
             }
@@ -290,7 +290,7 @@ void solveLower(const float* lower, const float* b, float* buf, int dim, int n) 
  * @param m 
  * @param n 
  */
-void matVecRowSubInplace(float* mat, const float* vec, int m, int n) {
+void matVecRowSubInplace(double* mat, const double* vec, int m, int n) {
     for (int i = 0; i < m; i++) {
         for (int j = 0; j < n; j++) {
             mat[i*n + j] -= vec[j];
@@ -304,9 +304,9 @@ void matVecRowSubInplace(float* mat, const float* vec, int m, int n) {
  * @param arr 数组，大小为 n
  * @param n 
  */
-void allExp2Inplace(float* arr, int n) {
+void allExp2Inplace(double* arr, int n) {
     for (int i = 0; i < n; i++) {
-        arr[i] = exp2f(arr[i]);
+        arr[i] = exp2(arr[i]);
     }
 }
 
@@ -315,10 +315,10 @@ void allExp2Inplace(float* arr, int n) {
  * 
  * @param arr 数组，大小为 n
  * @param n 
- * @return float 所有元素的平均值
+ * @return double 所有元素的平均值
  */
-float arrMean(float* arr, int n) {
-    float sum = 0;
+double arrMean(double* arr, int n) {
+    double sum = 0;
     for (int i = 0; i < n; i++) {
         sum += arr[i];
     }
@@ -333,9 +333,9 @@ float arrMean(float* arr, int n) {
  * @param m 
  * @param n 
  */
-void rowSum(const float* mat, float* buf, int m, int n) {
+void rowSum(const double* mat, double* buf, int m, int n) {
     for (int i = 0; i < m; i++) {
-        float sum = 0;
+        double sum = 0;
         for (int j = 0; j < n; j++) {
             sum += mat[i*n + j];
         }
@@ -353,7 +353,7 @@ void rowSum(const float* mat, float* buf, int m, int n) {
  * @param n 
  * @param k 
  */
-void matMul(const float* mat1, const float* mat2, float* buf, int m, int n, int k) {
+void matMul(const double* mat1, const double* mat2, double* buf, int m, int n, int k) {
     for (int i = 0; i < m*k; i++) {
         buf[i] = 0.0;
     }
@@ -376,7 +376,7 @@ void matMul(const float* mat1, const float* mat2, float* buf, int m, int n, int 
  * @param m 
  * @param n 
  */
-void matPerRowDivInplace(float* mat, const float* alphas, int m, int n) {
+void matPerRowDivInplace(double* mat, const double* alphas, int m, int n) {
     for (int i = 0; i < m; i++) {
         for (int j = 0; j < n; j++) {
             mat[i*n + j] /= alphas[i];
@@ -391,7 +391,7 @@ void matPerRowDivInplace(float* mat, const float* alphas, int m, int n) {
  * @param alpha 一个浮点数
  * @param n 
  */
-void allDivInplace(float* arr, float alpha, int n) {
+void allDivInplace(double* arr, double alpha, int n) {
     for (int i = 0; i < n; i++) {
         arr[i] /= alpha;
     }    
@@ -402,10 +402,10 @@ void allDivInplace(float* arr, float alpha, int n) {
  * 
  * @param arr 数组，大小为 n
  * @param n 
- * @return float 所有元素之和
+ * @return double 所有元素之和
  */
-float arrSum(const float* arr, int n) {
-    float sum = 0;
+double arrSum(const double* arr, int n) {
+    double sum = 0;
     for (int i = 0; i < n; i++) {
         sum += arr[i];
     }

@@ -17,12 +17,12 @@
  * @param tol 收敛条件（对数似然值变化小于 tol）
  * @param maxIter 最大迭代次数
  */
-GaussianMixture::GaussianMixture(int dim, int nComponent, float tol, int maxIter)
+GaussianMixture::GaussianMixture(int dim, int nComponent, double tol, int maxIter)
     : dim(dim), nComponent(nComponent), tol(tol), maxIter(maxIter), memoryMalloced(true)
 {
-    this->weights = (float*)malloc(sizeof(float) * nComponent);
-    this->means = (float*)malloc(sizeof(float) * nComponent * dim);
-    this->covariances = (float*)malloc(sizeof(float) * nComponent * dim * dim);
+    this->weights = (double*)malloc(sizeof(double) * nComponent);
+    this->means = (double*)malloc(sizeof(double) * nComponent * dim);
+    this->covariances = (double*)malloc(sizeof(double) * nComponent * dim * dim);
 }
 
 /**
@@ -36,7 +36,7 @@ GaussianMixture::GaussianMixture(int dim, int nComponent, float tol, int maxIter
  * @param tol 收敛条件（对数似然值变化小于 tol）
  * @param maxIter 最大迭代次数
  */
-GaussianMixture::GaussianMixture(int dim, int nComponent, float* weights, float* means, float* covariances, float tol, int maxIter)
+GaussianMixture::GaussianMixture(int dim, int nComponent, double* weights, double* means, double* covariances, double tol, int maxIter)
 : dim(dim), nComponent(nComponent), weights(weights), means(means), covariances(covariances), tol(tol), maxIter(maxIter), memoryMalloced(false)
 {}
 
@@ -46,7 +46,7 @@ GaussianMixture::GaussianMixture(int dim, int nComponent, float* weights, float*
  * @param data 拟合数据，大小为 numData 行 dim 列
  * @param numData 见上
  */
-void GaussianMixture::initParameter(const float* data, int numData) {
+void GaussianMixture::initParameter(const double* data, int numData) {
     printf("initializing parameters\n");
     double t1 = wall_time();
 
@@ -56,11 +56,11 @@ void GaussianMixture::initParameter(const float* data, int numData) {
     }
 
     // 选择前 nComponent 个数据作为聚类均值 !! 注意，这里没使用随机法，最好把数据 shuffle 好
-    memcpy(this->means, data, sizeof(float) * this->nComponent * this->dim);
+    memcpy(this->means, data, sizeof(double) * this->nComponent * this->dim);
 
     // TODO: 使用事先分配的 buffer 优化 malloc
-    float* mean = (float*)malloc(sizeof(float) * this->dim);
-    float* xSubMu = (float*)malloc(sizeof(float) * numData * this->dim);
+    double* mean = (double*)malloc(sizeof(double) * this->dim);
+    double* xSubMu = (double*)malloc(sizeof(double) * numData * this->dim);
 
     matColMean(data, mean, numData, this->dim);
     matVecRowSub(data, mean, xSubMu, numData, this->dim);
@@ -70,7 +70,7 @@ void GaussianMixture::initParameter(const float* data, int numData) {
     matDiagAddInplace(this->covariances, this->minCovar, this->dim);
 
     for (int c = 1; c < this->nComponent; ++c) {
-        memcpy(this->covariances + c * this->dim * this->dim, this->covariances, sizeof(float) * this->dim * this->dim);
+        memcpy(this->covariances + c * this->dim * this->dim, this->covariances, sizeof(double) * this->dim * this->dim);
     }
 
     free(mean);
@@ -87,15 +87,15 @@ void GaussianMixture::initParameter(const float* data, int numData) {
  * @param logDensity 对数概率密度输出，大小为 nComponent 行 numData 列
  * @param numData 见上
  */
-void GaussianMixture::logProbabilityDensity(const float* data, float* logDensity, int numData) {
+void GaussianMixture::logProbabilityDensity(const double* data, double* logDensity, int numData) {
     // TODO: 使用事先分配的 buffer 优化 malloc
 
     // lowerMat 用来临时保存 cholsky 分解得到的下三角矩阵
-    float* lowerMat = (float*)malloc(sizeof(float) * this->dim * this->dim);
+    double* lowerMat = (double*)malloc(sizeof(double) * this->dim * this->dim);
     // xSubMu 用来保存 x - mu
-    float* xSubMu = (float*)malloc(sizeof(float) * numData * this->dim);
+    double* xSubMu = (double*)malloc(sizeof(double) * numData * this->dim);
     // covSol 用来临时保存 Ly = x - mu 的解
-    float* covSol = (float*)malloc(sizeof(float) * numData * this->dim);
+    double* covSol = (double*)malloc(sizeof(double) * numData * this->dim);
 
     // TODO: 这里可以并行计算，上面的中间内存分配每个聚类都要
     for (int c = 0; c < this->nComponent; ++c) {
@@ -103,14 +103,14 @@ void GaussianMixture::logProbabilityDensity(const float* data, float* logDensity
         matCholesky(this->covariances + c * this->dim * this->dim, lowerMat, this->dim);
 
         // 协方差矩阵的行列式的对数等于 cholesky 分解的下三角矩阵对角线上元素的对数求和
-        float covLogDet = sumLog2Diag(lowerMat, this->dim);
+        double covLogDet = sumLog2Diag(lowerMat, this->dim);
 
         // 求解 y 满足 Ly = x - mu，则 (x - mu)^T Sigma^(-1) (x - mu) = y^T y
         matVecRowSub(data, this->means + c * this->dim, xSubMu, numData, this->dim);
         solveLower(lowerMat, xSubMu, covSol, this->dim, numData);
 
         // 计算概率密度
-        float* logDensityOfComponent = logDensity + c * numData;
+        double* logDensityOfComponent = logDensity + c * numData;
         rowSumSquare(covSol, logDensityOfComponent, numData, this->dim);
         allAddInplace(logDensityOfComponent, this->dim * (1 + log2f(M_PI)), numData);
         allAddInplace(logDensityOfComponent, covLogDet, numData);
@@ -128,27 +128,27 @@ void GaussianMixture::logProbabilityDensity(const float* data, float* logDensity
  * @param data 拟合数据，大小为 numData 行 dim 列
  * @param numData 见上
  */
-void GaussianMixture::fit(const float* data, int numData) {
+void GaussianMixture::fit(const double* data, int numData) {
     this->initParameter(data, numData);
 
     // 聚类权重对数
-    float* logWeights = (float*)malloc(sizeof(float) * this->nComponent);
+    double* logWeights = (double*)malloc(sizeof(double) * this->nComponent);
     // 对数概率密度矩阵
-    float* logProb = (float*)malloc(sizeof(float) * this->nComponent * numData);
+    double* logProb = (double*)malloc(sizeof(double) * this->nComponent * numData);
     // logProbSum 用于保存上面矩阵的各列求和结果
-    float* logProbSum = (float*)malloc(sizeof(float) * numData);
+    double* logProbSum = (double*)malloc(sizeof(double) * numData);
     // responsiblities 是簇分配结果，因为 logProb 和它不会同时用到，直接用一块空间就好了
-    float* responsibilities = logProb;
+    double* responsibilities = logProb;
     // xSubMu 在 M 步中计算协方差矩阵时需要使用
-    float* xSubMu = (float*)malloc(sizeof(float) * numData * this->dim);
+    double* xSubMu = (double*)malloc(sizeof(double) * numData * this->dim);
 
     // 对数似然值，比较两次迭代对数似然值变化用于判断迭代是否收敛
-    float logLikelihood = INFINITY;
+    double logLikelihood = INFINITY;
 
     for (int numIter = 0; numIter < this->maxIter; ++numIter) {
         double t1 = wall_time();
 
-        float prevLogLikelihood = logLikelihood;
+        double prevLogLikelihood = logLikelihood;
 
         // E 步
         this->logProbabilityDensity(data, logProb, numData);
@@ -163,7 +163,7 @@ void GaussianMixture::fit(const float* data, int numData) {
 
         // 计算对数似然值变化
         logLikelihood = arrMean(logProbSum, numData);
-        float diff = abs(logLikelihood - prevLogLikelihood);
+        double diff = abs(logLikelihood - prevLogLikelihood);
 
         printf("iteration %d, log likelihood difference: %f\n", numIter, diff);
 
@@ -183,10 +183,10 @@ void GaussianMixture::fit(const float* data, int numData) {
         // TODO: 这里可以并行计算，但 xSubMu 的内存分配每个聚类都要
         for (int c = 0; c < this->nComponent; ++c) {
             // 将 this->weights 归一化
-            this->weights[c] /= (float)numData;
+            this->weights[c] /= (double)numData;
 
             // resp 是样本点对当前聚类的簇分配结果
-            float* resp = responsibilities + c * numData;
+            double* resp = responsibilities + c * numData;
             matVecRowSub(data, this->means + c * this->dim, xSubMu, numData, this->dim);
             dataAverageCovariance(xSubMu, resp, this->covariances + c * this->dim * this->dim, numData, this->dim);
             // 加上 minCovar 以保证最小方差

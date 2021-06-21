@@ -5,7 +5,7 @@
 extern "C" {
 
 __attribute__((visibility ("default")))
-void gmmFit(const float* data, float* weights, float* means, float* covariances, int numData, int dim, int nComponent, float tol, int maxIter) {
+void gmmFit(const double* data, double* weights, double* means, double* covariances, int numData, int dim, int nComponent, double tol, int maxIter) {
     GaussianMixture gmm(dim, nComponent, weights, means, covariances, tol, maxIter);
 
     double t1 = wall_time();

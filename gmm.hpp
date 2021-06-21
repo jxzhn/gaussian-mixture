@@ -25,15 +25,15 @@ inline double wall_time() {
  */
 class GaussianMixture {
 private:
-    static constexpr float minCovar = 1e-4f; // 方差下限（防止浮点溢出）
+    static constexpr double minCovar = 1e-4f; // 方差下限（防止浮点溢出）
 
     int dim; // 数据维度
-    float* weights; // 各个聚类的权重，大小为 n_component
-    float* means; // 各个聚类的均值，大小为 n_component * dim
-    float* covariances; // 各个聚类的协方差矩阵，大小为 n_compoment * dim * dim
+    double* weights; // 各个聚类的权重，大小为 n_component
+    double* means; // 各个聚类的均值，大小为 n_component * dim
+    double* covariances; // 各个聚类的协方差矩阵，大小为 n_compoment * dim * dim
 
     int nComponent; // 聚类数量
-    float tol; // 收敛条件（对数似然值变化小于 tol）
+    double tol; // 收敛条件（对数似然值变化小于 tol）
     int maxIter; // 最大迭代次数
 
     bool memoryMalloced; // 判断内存是由构造函数创建的还是外部传进来的
@@ -44,7 +44,7 @@ private:
      * @param data 拟合数据，大小为 numData 行 dim 列
      * @param numData 见上
      */
-    void initParameter(const float* data, int numData);
+    void initParameter(const double* data, int numData);
 
     /**
      * @brief 计算所有数据对应各个聚类的对数概率密度
@@ -53,7 +53,7 @@ private:
      * @param logDensity 对数概率密度输出，大小为 nComponent 行 numData 列
      * @param numData 见上
      */
-    void logProbabilityDensity(const float* data, float* logDensity, int numData);
+    void logProbabilityDensity(const double* data, double* logDensity, int numData);
 
 public:
     /**
@@ -64,7 +64,7 @@ public:
      * @param tol 收敛条件（对数似然值变化小于 tol）
      * @param maxIter 最大迭代次数
      */
-    GaussianMixture(int dim, int nComponent, float tol = 1e-3, int maxIter = 100);
+    GaussianMixture(int dim, int nComponent, double tol = 1e-3, int maxIter = 100);
 
     /**
      * @brief 构造一个高斯混合模型对象（使用外部指针）
@@ -77,7 +77,7 @@ public:
      * @param tol 收敛条件（对数似然值变化小于 tol）
      * @param maxIter 最大迭代次数
      */
-    GaussianMixture(int dim, int nComponent, float* weights, float* means, float* covariances, float tol = 1e-3, int maxIter = 100);
+    GaussianMixture(int dim, int nComponent, double* weights, double* means, double* covariances, double tol = 1e-3, int maxIter = 100);
 
     /**
      * @brief 根据数据估计高斯混合模型参数
@@ -85,7 +85,7 @@ public:
      * @param data 拟合数据，大小为 numData 行 dim 列
      * @param numData 见上
      */
-    void fit(const float* data, int numData);
+    void fit(const double* data, int numData);
 
     /**
      * @brief 析构高斯混合模型对象，释放 malloc 的空间
