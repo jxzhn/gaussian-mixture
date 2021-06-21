@@ -43,14 +43,11 @@ test.gmmFit.argtypes = [
 
 # test.gmmFit(data, weights, means, covariances, data.shape[0], data.shape[1], 2, 1e-4, 300)
 
-data = np.random.randn(50000, 784).astype(np.float32)
+data = np.load('data/train-images.npy') / 255
+data = data.astype(np.float32)
 
 weights = np.empty(10, dtype=np.float32)
 means = np.empty((10, 784), dtype=np.float32)
 covariances = np.empty((10, 784, 784), dtype=np.float32)
 
 test.gmmFit(data, weights, means, covariances, data.shape[0], data.shape[1], 10, 0.0, 100)
-
-print(weights)
-print(means)
-print(covariances)

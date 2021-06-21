@@ -4,3 +4,7 @@
 *.so
 *.dll
 *.out
+# data directory
+data/
+# build directory
+build/
