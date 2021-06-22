@@ -9,8 +9,7 @@
 
 # include "gmm_matrix_support.h"
 
-# define DEBUG_NAN
-
+# include <math.h>
 
 /**
  * @brief 求矩阵每一列的均值
@@ -49,12 +48,6 @@ void dataCovariance(const double* xSubMu, double* buf, int m, int dim) {
                 covar += xSubMu[k * dim + i] * xSubMu[k * dim + j];
             }
             buf[i * dim + j] = covar * scale;
-# ifdef DEBUG_NAN
-            if (isnan(buf[i * dim + j])) {
-                printf("NaN produced in dataCovariance!\n");
-                exit(1);
-            }
-# endif
         }
     }
 }
@@ -82,12 +75,6 @@ void dataAverageCovariance(const double* xSubMu, const double* weights, double* 
                 covar += weights[k] * xSubMu[k * dim + i] * xSubMu[k * dim + j];
             }
             buf[i * dim + j] = covar * scale;
-# ifdef DEBUG_NAN
-            if (isnan(buf[i * dim + j])) {
-                printf("NaN produced in dataAverageCovariance!\n");
-                exit(1);
-            }
-# endif
         }
     }
 }
@@ -135,22 +122,10 @@ void matCholesky(const double* mat, double* buf, int m){
         for(int i = k + 1; i < m; ++i) // rows
         {
             buf[i * m + k] /= buf[k * m + k];
-# ifdef DEBUG_NAN
-            if (isnan(buf[i * m + k])) {
-                printf("NaN produced in matCholesky!\n");
-                exit(1);
-            }
-# endif
 
             for(int j = k + 1; j <= i; ++j)
             { 
                 buf[i * m + j] -= buf[i * m + k] * buf[j * m + k];
-# ifdef DEBUG_NAN
-                if (isnan(buf[i * m + j])) {
-                    printf("NaN produced in matCholesky!\n");
-                    exit(1);
-                }
-# endif
             }
         }
     }
@@ -168,12 +143,6 @@ double sumLog2Diag(const double* mat, int dim){
     for(int i = 0; i < dim; i++){
         sum += log2(mat[i * dim + i]);
     }
-# ifdef DEBUG_NAN
-    if (isnan(sum)) {
-        printf("NaN produced in sumLog2Diag!\n");
-        exit(1);
-    }
-# endif
     return sum;
 }
 
@@ -265,12 +234,6 @@ void colLog2SumExp2(const double* mat, double* buf, int m, int n){
             res += exp2(mat[i * n + j] - buf[j]);
         }
         buf[j] += log2(res);
-# ifdef DEBUG_NAN
-        if (isnan(buf[j])) {
-            printf("NaN produced in colLog2SumExp2!\n");
-            exit(1);
-        }
-# endif
     }
 }
 
@@ -284,12 +247,6 @@ void colLog2SumExp2(const double* mat, double* buf, int m, int n){
 void allLog2(const double* arr, double* buf, int n){
     for(int i = 0; i < n; i++){
         buf[i] = log2(arr[i]);
-# ifdef DEBUG_NAN
-        if (isnan(buf[i])) {
-            printf("NaN produced in allLog2!\n");
-            exit(1);
-        }
-# endif
     }
 }
 
@@ -330,12 +287,6 @@ void solveLower(const double* lower, const double* b, double* buf, int dim, int 
                 val -= (lower[i * dim + j] * buf[k * dim + j]);
             }
             buf[k * dim + i] = val / lower[i * dim + i];
-# ifdef DEBUG_NAN
-            if (isnan(buf[k * dim + i])) {
-                printf("NaN produced in solveLower!\n");
-                exit(1);
-            }
-# endif
         }
     }
 }
@@ -439,12 +390,6 @@ void matPerRowDivInplace(double* mat, const double* alphas, int m, int n) {
     for (int i = 0; i < m; i++) {
         for (int j = 0; j < n; j++) {
             mat[i*n + j] /= (alphas[i] + 10 * __DBL_EPSILON__);
-# ifdef DEBUG_NAN
-            if (isnan(mat[i*n + j])) {
-                printf("NaN produced in matPerRowDivInplace!\n");
-                exit(1);
-            }
-# endif
         }
     }
 }
@@ -459,12 +404,6 @@ void matPerRowDivInplace(double* mat, const double* alphas, int m, int n) {
 void allDivInplace(double* arr, double alpha, int n) {
     for (int i = 0; i < n; i++) {
         arr[i] /= alpha;
-# ifdef DEBUG_NAN
-        if (isnan(arr[i])) {
-            printf("NaN produced in allDivInplace!\n");
-            exit(1);
-        }
-# endif
     }    
 }
 
