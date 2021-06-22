@@ -211,15 +211,6 @@ void matPerRowDivInplace(double* mat, const double* alphas, int m, int n);
 void allDivInplace(double* arr, double alpha, int n);
 
 /**
- * @brief 计算数组中所有元素之和
- * 
- * @param arr 数组，大小为 n
- * @param n 
- * @return double 所有元素之和
- */
-double arrSum(const double* arr, int n);
-
-/**
  * @brief 求数据的加权协方差
  * 
  * @param xSubMu 按行逐个存放的数据（已减去均值），大小为 m 行 dim 列

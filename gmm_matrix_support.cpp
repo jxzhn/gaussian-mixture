@@ -406,18 +406,3 @@ void allDivInplace(double* arr, double alpha, int n) {
         arr[i] /= alpha;
     }    
 }
-
-/**
- * @brief 计算数组中所有元素之和
- * 
- * @param arr 数组，大小为 n
- * @param n 
- * @return double 所有元素之和
- */
-double arrSum(const double* arr, int n) {
-    double sum = 0;
-    for (int i = 0; i < n; i++) {
-        sum += arr[i];
-    }
-    return sum;
-}
