@@ -11,6 +11,17 @@
 
 # include <math.h>
 
+# ifdef TIME_INFO
+# include <stdio.h>
+# include <sys/time.h>
+
+inline double wall_time() {
+    timeval t;
+    gettimeofday(&t, NULL);
+    return t.tv_sec + t.tv_usec / 1e6;
+}
+# endif
+
 /**
  * @brief 求矩阵每一列的均值
  * 
@@ -62,6 +73,10 @@ void dataCovariance(const double* xSubMu, double* buf, int m, int dim) {
  * @param dim 
  */
 void dataAverageCovariance(const double* xSubMu, const double* weights, double* buf, int m, int dim) {
+# ifdef TIME_INFO
+    double t1 = wall_time();
+# endif
+
     double scale = 0.0;
     for (int k = 0; k < m; ++k) {
         scale += weights[k];
@@ -77,6 +92,11 @@ void dataAverageCovariance(const double* xSubMu, const double* weights, double* 
             buf[i * dim + j] = covar * scale;
         }
     }
+
+# ifdef TIME_INFO
+    double t2 = wall_time();
+    printf("dataAverageCovariance finished in %lf seconds.\n", t2 - t1);
+# endif
 }
 
 
@@ -344,6 +364,9 @@ double arrMean(double* arr, int n) {
  * @param n 
  */
 void rowSum(const double* mat, double* buf, int m, int n) {
+# ifdef TIME_INFO
+    double t1 = wall_time();
+# endif
     for (int i = 0; i < m; i++) {
         double sum = 0;
         for (int j = 0; j < n; j++) {
@@ -351,6 +374,10 @@ void rowSum(const double* mat, double* buf, int m, int n) {
         }
         buf[i] = sum;
     }
+# ifdef TIME_INFO
+    double t2 = wall_time();
+    printf("rowSum finished in %lf seconds.\n", t2 - t1);
+# endif
 }
 
 /**
