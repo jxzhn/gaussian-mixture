@@ -12,15 +12,14 @@ gmm_matrix_support.solveLower.argtypes = [
     ctypes.c_int
 ]
 
-X = np.random.randn(1000, 784) * 2.33 + 0.66
-covarianceX = np.cov(X, rowvar=False)
+X = np.random.randn(10, 10) * 2.33 + 0.66
+X = np.tril(X, k=0)
+b = np.random.randn(1000, 10) * 2.33 + 0.66
 
-testcase = np.ascontiguousarray(scipy.linalg.cholesky(covarianceX, lower=True))
+answer = scipy.linalg.solve_triangular(X, b.T, lower=True).T
 
-answer = scipy.linalg.solve_triangular(testcase, X.T, lower=True).T
-
-output = np.empty((1000, 784), dtype=np.float64)
-gmm_matrix_support.solveLower(testcase, X, output, X.shape[1], X.shape[0])
+output = np.empty((1000, 10), dtype=np.float64)
+gmm_matrix_support.solveLower(X, b, output, b.shape[1], b.shape[0])
 
 
 diff = np.abs(output - answer).max()
@@ -28,4 +27,3 @@ if diff < 1e-8:
     print('test passed.')
 else:
     print('test wrong! maximum difference: {:.6g}'.format(diff))
-

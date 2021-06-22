@@ -11,7 +11,7 @@ gmm_matrix_support.matCholesky.argtypes = [
 ]
 
 X = np.random.randn(1000, 784) * 2.33 + 0.66
-testcase = np.cov(X, rowvar=False)
+testcase = X.T @ X
 answer = scipy.linalg.cholesky(testcase, lower=True)
 
 output = np.empty((784, 784), dtype=np.float64)

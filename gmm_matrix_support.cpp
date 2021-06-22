@@ -8,7 +8,8 @@
  */
 
 # include "gmm_matrix_support.h"
-# include <iostream>
+
+# define DEBUG_NAN
 
 
 /**
@@ -48,6 +49,12 @@ void dataCovariance(const double* xSubMu, double* buf, int m, int dim) {
                 covar += xSubMu[k * dim + i] * xSubMu[k * dim + j];
             }
             buf[i * dim + j] = covar * scale;
+# ifdef DEBUG_NAN
+            if (isnan(buf[i * dim + j])) {
+                printf("NaN produced in dataCovariance!\n");
+                exit(1);
+            }
+# endif
         }
     }
 }
@@ -75,6 +82,12 @@ void dataAverageCovariance(const double* xSubMu, const double* weights, double* 
                 covar += weights[k] * xSubMu[k * dim + i] * xSubMu[k * dim + j];
             }
             buf[i * dim + j] = covar * scale;
+# ifdef DEBUG_NAN
+            if (isnan(buf[i * dim + j])) {
+                printf("NaN produced in dataAverageCovariance!\n");
+                exit(1);
+            }
+# endif
         }
     }
 }
@@ -103,22 +116,42 @@ void matDiagAddInplace(double* mat, double alpha, int dim){
  * @param n 
  */
 void matCholesky(const double* mat, double* buf, int m){
-    for(int k = 0; k < m; k++){
-        double sum = 0.0;
-        for(int i = 0; i < k; i++){
-            sum += buf[k * m + i] * buf[k * m + i];
+    // 拷贝矩阵的下三角部分
+    for(int i = 0; i < m; ++i) // rows
+    {
+        for(int j = 0; j <= i; ++j) // cols
+        {
+            buf[i * m + j] = mat[i * m + j];
         }
-        sum = mat[k * m + k] - sum;
-        buf[k * m + k] = sqrtf(sum > 0.0 ? sum : 0.0);
-        for(int i = k + 1; i < m; i++){
-            sum = 0.0;
-            for(int j = 0; j < k; j++){
-                sum += buf[i * m + j] * buf[k * m + j];
+        for(int j = i + 1; j < m; ++j) // cols
+        {
+            buf[i * m + j] = 0.0;
+        }
+    }
+    for(int k = 0; k < m; ++k) // cols
+    {
+        buf[k * m + k] = sqrt(buf[k * m + k] > 0.0 ? buf[k * m + k] : 0.0);
+
+        for(int i = k + 1; i < m; ++i) // rows
+        {
+            buf[i * m + k] /= buf[k * m + k];
+# ifdef DEBUG_NAN
+            if (isnan(buf[i * m + k])) {
+                printf("NaN produced in matCholesky!\n");
+                exit(1);
             }
-            buf[i * m + k] = (mat[i * m + k] - sum) / buf[k * m + k];
-        }
-        for(int j = 0; j < k; j++){
-            buf[j * m + k] = 0;
+# endif
+
+            for(int j = k + 1; j <= i; ++j)
+            { 
+                buf[i * m + j] -= buf[i * m + k] * buf[j * m + k];
+# ifdef DEBUG_NAN
+                if (isnan(buf[i * m + j])) {
+                    printf("NaN produced in matCholesky!\n");
+                    exit(1);
+                }
+# endif
+            }
         }
     }
 }
@@ -135,6 +168,12 @@ double sumLog2Diag(const double* mat, int dim){
     for(int i = 0; i < dim; i++){
         sum += log2(mat[i * dim + i]);
     }
+# ifdef DEBUG_NAN
+    if (isnan(sum)) {
+        printf("NaN produced in sumLog2Diag!\n");
+        exit(1);
+    }
+# endif
     return sum;
 }
 
@@ -211,7 +250,7 @@ void allMulInplace(double* arr, double alpha, int n){
 void colLog2SumExp2(const double* mat, double* buf, int m, int n){
     // TODO: 这个 CPU 访存连续性不是很好，但 CUDA 应该要用这种方式
     for (int j = 0; j < n; j++) {
-        double maximum = 0.0;
+        double maximum = -INFINITY;
         for (int i = 0; i < m; i++) {
             if (mat[i * n + j] > maximum) {
                 maximum = mat[i * n + j];
@@ -226,6 +265,12 @@ void colLog2SumExp2(const double* mat, double* buf, int m, int n){
             res += exp2(mat[i * n + j] - buf[j]);
         }
         buf[j] += log2(res);
+# ifdef DEBUG_NAN
+        if (isnan(buf[j])) {
+            printf("NaN produced in colLog2SumExp2!\n");
+            exit(1);
+        }
+# endif
     }
 }
 
@@ -239,6 +284,12 @@ void colLog2SumExp2(const double* mat, double* buf, int m, int n){
 void allLog2(const double* arr, double* buf, int n){
     for(int i = 0; i < n; i++){
         buf[i] = log2(arr[i]);
+# ifdef DEBUG_NAN
+        if (isnan(buf[i])) {
+            printf("NaN produced in allLog2!\n");
+            exit(1);
+        }
+# endif
     }
 }
 
@@ -269,14 +320,22 @@ void matVecColAddInplace(double* mat, const double* vec, int m, int n){
  * @param n 
  */
 void solveLower(const double* lower, const double* b, double* buf, int dim, int n) {
-    for (int i = 0; i < n; i++) {
-        buf[i*dim + 0] = b[i*dim + 0]/lower[0];
-        for (int j = 1; j < dim; j++) {
-            double sum = 0;
-            for (int k = 0; k < j; k++) {
-                sum += lower[j*dim + k] * buf[i*dim + k];
+    for (int k = 0; k < n; ++k)
+    {
+        for (int i = 0; i < dim; ++i)
+        {
+            double val = b[k * dim + i];
+            for (int j = 0; j < i; ++j)
+            {
+                val -= (lower[i * dim + j] * buf[k * dim + j]);
             }
-            buf[i*dim + j] = (b[i*dim + j] - sum)/lower[j*dim + j];
+            buf[k * dim + i] = val / lower[i * dim + i];
+# ifdef DEBUG_NAN
+            if (isnan(buf[k * dim + i])) {
+                printf("NaN produced in solveLower!\n");
+                exit(1);
+            }
+# endif
         }
     }
 }
@@ -379,7 +438,13 @@ void matMul(const double* mat1, const double* mat2, double* buf, int m, int n, i
 void matPerRowDivInplace(double* mat, const double* alphas, int m, int n) {
     for (int i = 0; i < m; i++) {
         for (int j = 0; j < n; j++) {
-            mat[i*n + j] /= alphas[i];
+            mat[i*n + j] /= (alphas[i] + 10 * __DBL_EPSILON__);
+# ifdef DEBUG_NAN
+            if (isnan(mat[i*n + j])) {
+                printf("NaN produced in matPerRowDivInplace!\n");
+                exit(1);
+            }
+# endif
         }
     }
 }
@@ -394,6 +459,12 @@ void matPerRowDivInplace(double* mat, const double* alphas, int m, int n) {
 void allDivInplace(double* arr, double alpha, int n) {
     for (int i = 0; i < n; i++) {
         arr[i] /= alpha;
+# ifdef DEBUG_NAN
+        if (isnan(arr[i])) {
+            printf("NaN produced in allDivInplace!\n");
+            exit(1);
+        }
+# endif
     }    
 }
 

@@ -103,7 +103,7 @@ void GaussianMixture::logProbabilityDensity(const double* data, double* logDensi
         matCholesky(this->covariances + c * this->dim * this->dim, lowerMat, this->dim);
 
         // 协方差矩阵的行列式的对数等于 cholesky 分解的下三角矩阵对角线上元素的对数求和
-        double covLogDet = sumLog2Diag(lowerMat, this->dim);
+        double covLogDet = 2 * sumLog2Diag(lowerMat, this->dim);
 
         // 求解 y 满足 Ly = x - mu，则 (x - mu)^T Sigma^(-1) (x - mu) = y^T y
         matVecRowSub(data, this->means + c * this->dim, xSubMu, numData, this->dim);
@@ -112,7 +112,7 @@ void GaussianMixture::logProbabilityDensity(const double* data, double* logDensi
         // 计算概率密度
         double* logDensityOfComponent = logDensity + c * numData;
         rowSumSquare(covSol, logDensityOfComponent, numData, this->dim);
-        allAddInplace(logDensityOfComponent, this->dim * (1 + log2f(M_PI)), numData);
+        allAddInplace(logDensityOfComponent, this->dim * log2(2 * M_PI), numData);
         allAddInplace(logDensityOfComponent, covLogDet, numData);
         allMulInplace(logDensityOfComponent, -0.5, numData);
     }
