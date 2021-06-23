@@ -13,7 +13,6 @@ void dataAverageCovariance(const double* xSubMu, const double* weights, double* 
         scale += weights[k];
     }
     scale = 1.0 / (scale + 10 * __DBL_EPSILON__);
-    // TODO: 这个 CPU 访存连续性不是很好，但 CUDA 应该要用这种方式
     for (int i = 0; i < dim; ++i) {
         for (int j = 0; j < dim; ++j) {
             double covar = 0.0;
@@ -55,6 +54,10 @@ __global__ void dataAverageCovarianceKernel(const double* xSubMu, const double* 
 ```
 
 **运行时间：0.223474s**
+
+### CUDA V2
+
+TODO: 参考使用共享内存优化 `matMul`
 
 ## 优化过程记录：dataCovariance
 
@@ -104,6 +107,10 @@ __global__ void dataCovarianceKernel(const double* xSubMu, double* buf, int m, i
 ```
 
 **运行时间：0.242587s**
+
+### CUDA V2
+
+TODO: 参考使用共享内存优化 `matMul`
 
 ## 优化过程记录：matCholesky
 
@@ -262,6 +269,162 @@ __global__ void solveLowerKernel(const double* lower, const double* b, double* b
 
 **运行时间：0.831100s**
 
-因为输出 buf 还要不断读进来，本来想用共享内存优化一下，但仔细一想共享内存只有 48kB，一个 784 维的双精度向量就是 6.125kB 了，可能不太行。
+因为输出 buf 还要不断读进来，本来想用共享内存优化一下，但仔细一想共享内存只有 48kB，一个 784 维的双精度向量就是 6.125kB 了，可能不太行？有空的话可以试一下。
 
-## 优化过程记录
+## 优化过程记录：matMul
+
+测试规模：10 x 60000, 60000 x 784
+
+### CPU 版本
+
+```c++
+for (int i = 0; i < m; i++) {
+    for (int j = 0; j < k; j++) {
+        double val = 0.0;
+        for (int p = 0; p < n; p++) {
+            val += mat1[i*n + p] * mat2[p*k + j];
+        }
+        buf[i*k + j] = val;
+    }
+}
+```
+
+**运行时间：2.646258s**
+
+### CUDA V1
+
+```c++
+__global__ void matMulKernel(const double* mat1, const double* mat2, double* buf, int m, int n, int k) {
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (index < m * k)
+    {
+        int i = index / k;
+        int j = index % k;
+
+        double val = 0.0;
+        for (int l = 0; l < n; l++)
+        {
+            val += mat1[i * n + l] * mat2[l * k + j];
+        }
+
+        buf[i * k + j] = val;
+    }
+}
+```
+
+**运行时间：0.012765s**
+
+### CUDA V2
+
+使用二位线程块进行分块矩阵乘法，将每个块载入到共享内存中减少访存开销。
+
+![gemm2a.png](images/gemm2a.png)
+
+![gemm2b.png](images/gemm2b.png)
+
+```c++
+__global__ void matMulKernel(const double* mat1, const double* mat2, double* buf, int m, int n, int k) {
+    int i = blockIdx.y * blockDim.y + threadIdx.y;
+    int j = blockIdx.x * blockDim.x + threadIdx.x;
+
+    int ty = threadIdx.y;
+    int tx = threadIdx.x;
+
+    double val = 0.0;
+
+    __shared__ double matTile1[BLOCK_DIM_2D][BLOCK_DIM_2D];
+    __shared__ double matTile2[BLOCK_DIM_2D][BLOCK_DIM_2D];
+
+
+    int nTiles = (n + BLOCK_DIM_2D - 1) / BLOCK_DIM_2D;
+
+    // 分块乘法
+    for (int t = 0; t < nTiles; t++)
+    {
+        // 载入分块到共享内存
+        int x = t * BLOCK_DIM_2D + tx;
+
+        matTile1[ty][tx] = (i < m && x < n) ? mat1[i * n + x] : 0.0;
+
+        int y = t * BLOCK_DIM_2D + ty;
+
+        matTile2[ty][tx] =(y < n && j < k) ? mat2[y * k + j] : 0.0;
+        
+        __syncthreads();
+
+        // 计算分块乘积
+        for (int l = 0; l < BLOCK_DIM_2D; l++)
+        {
+            val += matTile1[ty][l] * matTile2[l][tx];
+        }
+
+        __syncthreads();
+    }
+
+    // 写入计算结果
+    if (i < m && j < k)
+    {
+        buf[i * k + j] = val;
+    }
+}
+```
+
+**运行时间：0.006349s**
+
+### CUDA V3
+
+每个线程负责两个位置的载入和计算，从而在计算矩阵乘积时得以复用 `matTile2[l][tx]` 的寄存器数据，减少对共享内存的访问次数。
+
+```c++
+__global__ void matMulKernel(const double* mat1, const double* mat2, double* buf, int m, int n, int k) {
+    int i = blockIdx.y * blockDim.y * 2 + threadIdx.y;
+    int j = blockIdx.x * blockDim.x + threadIdx.x;
+
+    int ty = threadIdx.y;
+    int tx = threadIdx.x;
+
+    double val0 = 0.0, val1 = 0.0;
+
+    __shared__ double matTile1[BLOCK_DIM_2D][BLOCK_DIM_2D];
+    __shared__ double matTile2[BLOCK_DIM_2D][BLOCK_DIM_2D];
+
+    int nTiles = (n + BLOCK_DIM_2D - 1) / BLOCK_DIM_2D;
+
+    // 分块乘法
+    for (int t = 0; t < nTiles; t++)
+    {
+        // 载入分块到共享内存，一个线程负责两个位置
+        int x = t * BLOCK_DIM_2D + tx;
+
+        matTile1[ty][tx] = (i < m && x < n) ? mat1[i * n + x] : 0.0;
+        matTile1[ty + BLOCK_DIM_2D / 2][tx] = ((i + BLOCK_DIM_2D / 2) < m && x < n) ? mat1[(i + BLOCK_DIM_2D / 2) * n + x] : 0.0;
+
+        int y = t * BLOCK_DIM_2D + ty;
+
+        matTile2[ty][tx] = (y < n && j < k) ? mat2[y * k + j] : 0.0;
+        matTile2[ty + BLOCK_DIM_2D / 2][tx] = ((y + BLOCK_DIM_2D / 2) < n && j < k) ? mat2[(y + BLOCK_DIM_2D / 2) * k + j] : 0.0;
+
+        __syncthreads();
+
+        // 计算分块乘积
+        for (int l = 0; l < BLOCK_DIM_2D; l++)
+        {
+            val0 += matTile1[ty][l] * matTile2[l][tx];
+            val1 += matTile1[ty + BLOCK_DIM_2D / 2][l] * matTile2[l][tx];
+        }
+
+        __syncthreads();
+    }
+
+    // 写入计算结果
+    if (i < m && j < k)
+    {
+        buf[i * k + j] = val0;
+        buf[(i + BLOCK_DIM_2D / 2) * k + j] = val1;
+    }
+}
+```
+
+**运行时间：0.005966s**
+

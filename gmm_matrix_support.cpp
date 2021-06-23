@@ -413,17 +413,24 @@ void rowSum(const double* mat, double* buf, int m, int n) {
  * @param k 
  */
 void matMul(const double* mat1, const double* mat2, double* buf, int m, int n, int k) {
-    for (int i = 0; i < m*k; i++) {
-        buf[i] = 0.0;
-    }
+# ifdef TIME_INFO
+    double t1 = wall_time();
+# endif
 
     for (int i = 0; i < m; i++) {
         for (int j = 0; j < k; j++) {
+            double val = 0.0;
             for (int p = 0; p < n; p++) {
-                buf[i*k + j] += mat1[i*n + p] * mat2[p*k + j];
+                val += mat1[i*n + p] * mat2[p*k + j];
             }
+            buf[i*k + j] = val;
         }
     }
+
+# ifdef TIME_INFO
+    double t2 = wall_time();
+    printf("matMul finished in %lf seconds.\n", t2 - t1);
+# endif
 }
 
 

@@ -1,5 +1,5 @@
 /**
- * @file gmm_matrix_support.cpp
+ * @file gmm_matrix_support.cu
  * @author jonson (jxzhn@jxzhn.com)
  * @brief 一些高斯混合模型会用到的线性代数函数实现
  * @version 0.1
@@ -23,11 +23,13 @@ inline double wall_time() {
 # endif
 
 constexpr int BLOCK_DIM_1D = 256;
+constexpr int BLOCK_DIM_2D = 16;
 
 __global__ void dataAverageCovarianceKernel(const double* xSubMu, const double* weights, double* buf, int m, int dim) {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     
-    if (index < dim * dim) {
+    if (index < dim * dim)
+    {
         int i = index / dim;
         int j = index % dim;
 
@@ -72,7 +74,8 @@ void dataAverageCovariance(const double* xSubMu, const double* weights, double* 
 __global__ void dataCovarianceKernel(const double* xSubMu, double* buf, int m, int dim) {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     
-    if (index < dim * dim) {
+    if (index < dim * dim)
+    {
         int i = index / dim;
         int j = index % dim;
 
@@ -209,5 +212,82 @@ void solveLower(const double* lower, const double* b, double* buf, int dim, int 
 
     double t2 = wall_time();
     printf("solveLower finished in %lf seconds.\n", t2 - t1);
+# endif
+}
+
+__global__ void matMulKernel(const double* mat1, const double* mat2, double* buf, int m, int n, int k) {
+    int i = blockIdx.y * blockDim.y * 2 + threadIdx.y;
+    int j = blockIdx.x * blockDim.x + threadIdx.x;
+
+    int ty = threadIdx.y;
+    int tx = threadIdx.x;
+
+    double val0 = 0.0, val1 = 0.0;
+
+    __shared__ double matTile1[BLOCK_DIM_2D][BLOCK_DIM_2D];
+    __shared__ double matTile2[BLOCK_DIM_2D][BLOCK_DIM_2D];
+
+    int nTiles = (n + BLOCK_DIM_2D - 1) / BLOCK_DIM_2D;
+
+    // 分块乘法
+    for (int t = 0; t < nTiles; t++)
+    {
+        // 载入分块到共享内存，一个线程负责两个位置
+        int x = t * BLOCK_DIM_2D + tx;
+
+        matTile1[ty][tx] = (i < m && x < n) ? mat1[i * n + x] : 0.0;
+        matTile1[ty + BLOCK_DIM_2D / 2][tx] = ((i + BLOCK_DIM_2D / 2) < m && x < n) ? mat1[(i + BLOCK_DIM_2D / 2) * n + x] : 0.0;
+
+        int y = t * BLOCK_DIM_2D + ty;
+
+        matTile2[ty][tx] = (y < n && j < k) ? mat2[y * k + j] : 0.0;
+        matTile2[ty + BLOCK_DIM_2D / 2][tx] = ((y + BLOCK_DIM_2D / 2) < n && j < k) ? mat2[(y + BLOCK_DIM_2D / 2) * k + j] : 0.0;
+
+        __syncthreads();
+
+        // 计算分块乘积
+        for (int l = 0; l < BLOCK_DIM_2D; l++)
+        {
+            val0 += matTile1[ty][l] * matTile2[l][tx];
+            val1 += matTile1[ty + BLOCK_DIM_2D / 2][l] * matTile2[l][tx];
+        }
+
+        __syncthreads();
+    }
+
+    // 写入计算结果
+    if (i < m && j < k)
+    {
+        buf[i * k + j] = val0;
+        buf[(i + BLOCK_DIM_2D / 2) * k + j] = val1;
+    }
+}
+
+
+/**
+ * @brief 矩阵乘法
+ * 
+ * @param mat1 矩阵 1，大小为 m 行 n 列
+ * @param mat2 矩阵 2，大小为 n 行 k 列
+ * @param buf 矩阵相乘结果，大小为 m 行 k 列
+ * @param m 
+ * @param n 
+ * @param k 
+ */
+void matMul(const double* mat1, const double* mat2, double* buf, int m, int n, int k) {
+# ifdef TIME_INFO
+    double t1 = wall_time();
+# endif
+
+    constexpr dim3 blockSize(BLOCK_DIM_2D, BLOCK_DIM_2D / 2);
+    dim3 gridSize((k + BLOCK_DIM_2D - 1) / BLOCK_DIM_2D, (m + BLOCK_DIM_2D - 1) / BLOCK_DIM_2D);
+
+    matMulKernel<<<gridSize, blockSize>>>(mat1, mat2, buf, m, n, k);
+
+# ifdef TIME_INFO
+    cudaDeviceSynchronize();
+
+    double t2 = wall_time();
+    printf("matMul finished in %lf seconds.\n", t2 - t1);
 # endif
 }
