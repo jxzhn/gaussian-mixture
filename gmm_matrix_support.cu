@@ -26,23 +26,56 @@ constexpr int BLOCK_DIM_1D = 256;
 constexpr int BLOCK_DIM_2D = 16;
 
 __global__ void dataAverageCovarianceKernel(const double* xSubMu, const double* weights, double* buf, int m, int dim) {
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
-    
-    if (index < dim * dim)
-    {
-        int i = index / dim;
-        int j = index % dim;
+    int i = blockIdx.y * blockDim.y * 2 + threadIdx.y;
+    int j = blockIdx.x * blockDim.x + threadIdx.x;
 
-        double scale = 0.0;
-        double covar = 0.0;
+    int ty = threadIdx.y;
+    int tx = threadIdx.x;
+
+    double covar0 = 0.0, covar1 = 0.0;
+    double scale = 0.0;
+
+    __shared__ double tile1[BLOCK_DIM_2D][BLOCK_DIM_2D];
+    __shared__ double tile2[BLOCK_DIM_2D][BLOCK_DIM_2D];
+
+    int nTiles = (m + BLOCK_DIM_2D - 1) / BLOCK_DIM_2D;
+
+    // 分块乘法
+    for (int t = 0; t < nTiles; t++)
+    {
+        // 载入分块到共享内存
+        int x = t * BLOCK_DIM_2D + tx;
+
+        tile1[ty][tx] = (i < dim && x < m) ? xSubMu[x * dim + i] : 0.0;
+        tile1[ty + BLOCK_DIM_2D / 2][tx] = ((i + BLOCK_DIM_2D / 2) < dim && x < m) ? xSubMu[x * dim + (i + BLOCK_DIM_2D / 2)] : 0.0;
+    
+        int y = t * BLOCK_DIM_2D + ty;
+
+        tile2[ty][tx] = (y < m && j < dim) ? xSubMu[y * dim + j] : 0.0;
+        tile2[ty + BLOCK_DIM_2D / 2][tx] = ((y + BLOCK_DIM_2D / 2) < m && j < dim) ? xSubMu[(y + BLOCK_DIM_2D / 2) * dim + j] : 0.0;
         
-        for (int k = 0; k < m; k++)
+        __syncthreads();
+
+        // 计算分块乘积
+        for (int k = 0; k < BLOCK_DIM_2D; k++)
         {
-            scale += weights[k];
-            covar += weights[k] * xSubMu[k * dim + i] * xSubMu[k * dim + j];
+            int kAbs = t * BLOCK_DIM_2D + k;
+            if (kAbs < m)
+            {
+                scale += weights[kAbs];
+                covar0 += weights[kAbs] * tile1[ty][k] * tile2[k][tx];
+                covar1 += weights[kAbs] * tile1[ty + BLOCK_DIM_2D / 2][k] * tile2[k][tx];
+            }
         }
 
-        buf[i * dim + j] = covar  / (scale + 10 * __DBL_EPSILON__);
+        __syncthreads();
+    }
+
+    // 写入计算结果
+    if (i < dim && j < dim)
+    {
+        buf[i * dim + j] = covar0 / (scale + 10 * __DBL_EPSILON__);
+        buf[(i + BLOCK_DIM_2D / 2) * dim + j] = covar1 / (scale + 10 * __DBL_EPSILON__);
     }
 }
 
@@ -60,8 +93,10 @@ void dataAverageCovariance(const double* xSubMu, const double* weights, double* 
     double t1 = wall_time();
 # endif
 
-    int numBlocks = (dim * dim + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D;
-    dataAverageCovarianceKernel<<<numBlocks, BLOCK_DIM_1D>>>(xSubMu, weights, buf, m, dim);
+    constexpr dim3 blockSize(BLOCK_DIM_2D, BLOCK_DIM_2D / 2);
+    dim3 gridSize((dim + BLOCK_DIM_2D - 1) / BLOCK_DIM_2D, (dim + BLOCK_DIM_2D - 1) / BLOCK_DIM_2D);
+
+    dataAverageCovarianceKernel<<<gridSize, blockSize>>>(xSubMu, weights, buf, m, dim);
 
 # ifdef TIME_INFO
     cudaDeviceSynchronize();
@@ -72,21 +107,50 @@ void dataAverageCovariance(const double* xSubMu, const double* weights, double* 
 }
 
 __global__ void dataCovarianceKernel(const double* xSubMu, double* buf, int m, int dim) {
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
-    
-    if (index < dim * dim)
-    {
-        int i = index / dim;
-        int j = index % dim;
+    int i = blockIdx.y * blockDim.y * 2 + threadIdx.y;
+    int j = blockIdx.x * blockDim.x + threadIdx.x;
 
-        double covar = 0.0;
+    int ty = threadIdx.y;
+    int tx = threadIdx.x;
+
+    double covar0 = 0.0, covar1 = 0.0;
+
+    __shared__ double tile1[BLOCK_DIM_2D][BLOCK_DIM_2D];
+    __shared__ double tile2[BLOCK_DIM_2D][BLOCK_DIM_2D];
+
+    int nTiles = (m + BLOCK_DIM_2D - 1) / BLOCK_DIM_2D;
+
+    // 分块乘法
+    for (int t = 0; t < nTiles; t++)
+    {
+        // 载入分块到共享内存，每个线程负责两个元素
+        int x = t * BLOCK_DIM_2D + tx;
+
+        tile1[ty][tx] = (i < dim && x < m) ? xSubMu[x * dim + i] : 0.0;
+        tile1[ty + BLOCK_DIM_2D / 2][tx] = ((i + BLOCK_DIM_2D / 2) < dim && x < m) ? xSubMu[x * dim + (i + BLOCK_DIM_2D / 2)] : 0.0;
+
+        int y = t * BLOCK_DIM_2D + ty;
+
+        tile2[ty][tx] = (y < m && j < dim) ? xSubMu[y * dim + j] : 0.0;
+        tile2[ty + BLOCK_DIM_2D / 2][tx] = ((y + BLOCK_DIM_2D / 2) < m && j < dim) ? xSubMu[(y + BLOCK_DIM_2D / 2) * dim + j] : 0.0;
         
-        for (int k = 0; k < m; k++)
+        __syncthreads();
+
+        // 计算分块乘积
+        for (int k = 0; k < BLOCK_DIM_2D; k++)
         {
-            covar += xSubMu[k * dim + i] * xSubMu[k * dim + j];
+            covar0 += tile1[ty][k] * tile2[k][tx];
+            covar1 += tile1[ty + BLOCK_DIM_2D / 2][k] * tile2[k][tx];
         }
 
-        buf[i * dim + j] = covar  / (double)(m - 1);
+        __syncthreads();
+    }
+
+    // 写入计算结果
+    if (i < dim && j < dim)
+    {
+        buf[i * dim + j] = covar0 / (double)(m - 1);
+        buf[(i + BLOCK_DIM_2D / 2) * dim + j] = covar1 / (double)(m - 1);
     }
 }
 
@@ -103,8 +167,10 @@ void dataCovariance(const double* xSubMu, double* buf, int m, int dim) {
     double t1 = wall_time();
 # endif
 
-    int numBlocks = (dim * dim + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D;
-    dataCovarianceKernel<<<numBlocks, BLOCK_DIM_1D>>>(xSubMu, buf, m, dim);
+    constexpr dim3 blockSize(BLOCK_DIM_2D, BLOCK_DIM_2D / 2);
+    dim3 gridSize((dim + BLOCK_DIM_2D - 1) / BLOCK_DIM_2D, (dim + BLOCK_DIM_2D - 1) / BLOCK_DIM_2D);
+
+    dataCovarianceKernel<<<gridSize, blockSize>>>(xSubMu, buf, m, dim);
 
 # ifdef TIME_INFO
     cudaDeviceSynchronize();
