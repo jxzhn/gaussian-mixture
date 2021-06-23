@@ -50,6 +50,10 @@ void matColMean(const double* mat, double* buf, int m, int n) {
  * @param dim 
  */
 void dataCovariance(const double* xSubMu, double* buf, int m, int dim) {
+# ifdef TIME_INFO
+    double t1 = wall_time();
+# endif
+
     double scale = 1.0 / (m - 1);
     // TODO: 这个 CPU 访存连续性不是很好，但 CUDA 应该要用这种方式
     for (int i = 0; i < dim; ++i) {
@@ -61,6 +65,11 @@ void dataCovariance(const double* xSubMu, double* buf, int m, int dim) {
             buf[i * dim + j] = covar * scale;
         }
     }
+
+# ifdef TIME_INFO
+    double t2 = wall_time();
+    printf("dataCovariance finished in %lf seconds.\n", t2 - t1);
+# endif
 }
 
 /**
@@ -123,32 +132,36 @@ void matDiagAddInplace(double* mat, double alpha, int dim){
  * @param n 
  */
 void matCholesky(const double* mat, double* buf, int m){
-    // 拷贝矩阵的下三角部分
-    for(int i = 0; i < m; ++i) // rows
-    {
-        for(int j = 0; j <= i; ++j) // cols
-        {
-            buf[i * m + j] = mat[i * m + j];
-        }
-        for(int j = i + 1; j < m; ++j) // cols
-        {
-            buf[i * m + j] = 0.0;
-        }
-    }
-    for(int k = 0; k < m; ++k) // cols
-    {
-        buf[k * m + k] = sqrt(buf[k * m + k] > 0.0 ? buf[k * m + k] : 0.0);
+# ifdef TIME_INFO
+    double t1 = wall_time();
+# endif
 
-        for(int i = k + 1; i < m; ++i) // rows
-        {
-            buf[i * m + k] /= buf[k * m + k];
+    for(int k = 0; k < m; k++) {
+        double sum = 0.0;
 
-            for(int j = k + 1; j <= i; ++j)
-            { 
-                buf[i * m + j] -= buf[i * m + k] * buf[j * m + k];
+        for(int i = 0; i < k; i++) {
+            sum += buf[k * m + i] * buf[k * m + i];
+        }
+        buf[k * m + k] = sqrt(mat[k * m + k] - sum);
+        
+        for(int i = k + 1; i < m; i++) {
+            sum = 0.0;
+            for(int j = 0; j < k; j++) {
+                sum += buf[i * m + j] * buf[k * m + j];
             }
+
+            buf[i * m + k] = (mat[i * m + k] - sum) / buf[k * m + k];
+        }
+
+        for(int j = 0; j < k; j++) {
+            buf[j * m + k] = 0;
         }
     }
+
+# ifdef TIME_INFO
+    double t2 = wall_time();
+    printf("matCholesky finished in %lf seconds.\n", t2 - t1);
+# endif
 }
 
 /**
@@ -297,6 +310,10 @@ void matVecColAddInplace(double* mat, const double* vec, int m, int n){
  * @param n 
  */
 void solveLower(const double* lower, const double* b, double* buf, int dim, int n) {
+# ifdef TIME_INFO
+    double t1 = wall_time();
+# endif
+
     for (int k = 0; k < n; ++k)
     {
         for (int i = 0; i < dim; ++i)
@@ -309,6 +326,11 @@ void solveLower(const double* lower, const double* b, double* buf, int dim, int 
             buf[k * dim + i] = val / lower[i * dim + i];
         }
     }
+
+# ifdef TIME_INFO
+    double t2 = wall_time();
+    printf("solveLower finished in %lf seconds.\n", t2 - t1);
+# endif
 }
 
 
