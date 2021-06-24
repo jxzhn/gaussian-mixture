@@ -7,6 +7,7 @@
  * @copyright Copyright (c) 2021
  */
 
+# define GPU_VERSION
 # include "gmm_matrix_support.h"
 
 # include <cuda_runtime.h>
@@ -21,9 +22,6 @@ inline double wall_time() {
     return t.tv_sec + t.tv_usec / 1e6;
 }
 # endif
-
-constexpr int BLOCK_DIM_1D = 256;
-constexpr int BLOCK_DIM_2D = 16;
 
 __global__ void dataAverageCovarianceKernel(const double* xSubMu, const double* weights, double* buf, int m, int dim) {
     int i = blockIdx.y * blockDim.y * 2 + threadIdx.y;
