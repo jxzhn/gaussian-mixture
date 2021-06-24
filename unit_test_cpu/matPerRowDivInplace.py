@@ -14,7 +14,7 @@ testcase = np.random.randn(1000, 784) * 2.33 + 0.66
 vec = np.random.randn(1000) * 2.33 + 0.66
 
 
-answer = testcase.T / vec
+answer = testcase.T / (vec + 10 * np.finfo(np.float64).eps)
 answer = answer.T
 
 

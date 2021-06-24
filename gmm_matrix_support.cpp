@@ -118,9 +118,18 @@ void dataAverageCovariance(const double* xSubMu, const double* weights, double* 
  * @param dim 
  */
 void matDiagAddInplace(double* mat, double alpha, int dim){
+# ifdef TIME_INFO
+    double t1 = wall_time();
+# endif
+
     for(int i = 0; i < dim; i++){
         mat[i * dim + i] += alpha;
     }
+
+# ifdef TIME_INFO
+    double t2 = wall_time();
+    printf("matDiagAddInplace finished in %lf seconds.\n", t2 - t1);
+# endif
 }
 
 /**
@@ -250,6 +259,10 @@ void allMulInplace(double* arr, double alpha, int n){
  * @param n 
  */
 void colLog2SumExp2(const double* mat, double* buf, int m, int n){
+# ifdef TIME_INFO
+    double t1 = wall_time();
+# endif
+
     // TODO: 这个 CPU 访存连续性不是很好，但 CUDA 应该要用这种方式
     for (int j = 0; j < n; j++) {
         double maximum = -INFINITY;
@@ -268,6 +281,11 @@ void colLog2SumExp2(const double* mat, double* buf, int m, int n){
         }
         buf[j] += log2(res);
     }
+
+# ifdef TIME_INFO
+    double t2 = wall_time();
+    printf("colLog2SumExp2 finished in %lf seconds.\n", t2 - t1);
+# endif
 }
 
 /**

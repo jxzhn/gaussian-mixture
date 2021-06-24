@@ -179,12 +179,11 @@ void GaussianMixture::fit(const double* data, int numData) {
         matMul(responsibilities, data, this->means, this->nComponent, numData, this->dim);
         // this->means 各行相应除以各聚类分配到的数据点数量，得到均值
         matPerRowDivInplace(this->means, this->weights, this->nComponent, this->dim);
+        // 将 this->weights 归一化
+        allDivInplace(this->weights, (double)numData, this->nComponent);
 
         // TODO: 这里可以并行计算，但 xSubMu 的内存分配每个聚类都要
         for (int c = 0; c < this->nComponent; ++c) {
-            // 将 this->weights 归一化
-            this->weights[c] /= (double)numData;
-
             // resp 是样本点对当前聚类的簇分配结果
             double* resp = responsibilities + c * numData;
             matVecRowSub(data, this->means + c * this->dim, xSubMu, numData, this->dim);

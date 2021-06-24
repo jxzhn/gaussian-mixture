@@ -43,7 +43,7 @@ __global__ void dataAverageCovarianceKernel(const double* xSubMu, const double* 
     // 分块乘法
     for (int t = 0; t < nTiles; t++)
     {
-        // 载入分块到共享内存
+        // 载入分块到共享内存，每个线程负责两个元素
         int x = t * BLOCK_DIM_2D + tx;
 
         tile1[ty][tx] = (i < dim && x < m) ? xSubMu[x * dim + i] : 0.0;
@@ -355,5 +355,268 @@ void matMul(const double* mat1, const double* mat2, double* buf, int m, int n, i
 
     double t2 = wall_time();
     printf("matMul finished in %lf seconds.\n", t2 - t1);
+# endif
+}
+
+__global__ void colLog2SumExp2Kernel(const double* mat, double* buf, int m, int n) {
+    int j = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (j < n)
+    {
+        // 先找出最大值，这样求指数的时候更不容易溢出
+        double maximum = mat[j];
+        for (int i = 1; i < m; i++)
+        {
+            if (mat[i * n + j] > maximum)
+            {
+                maximum = mat[i * n + j];
+            }
+        }
+
+        double res = 0.0;
+        for (int i = 0; i < m; i++)
+        {
+            res += exp2(mat[i * n + j] - maximum);
+        }
+
+        buf[j] = log2(res) + maximum;
+    }
+}
+
+/**
+ * @brief 计算矩阵各列的元素的指数之和的对数（指数和对数均以 2 为底）
+ * 
+ * @param mat 矩阵，大小为 m 行 n 列
+ * @param buf 各列元素的指数之和的对数结果，大小为 n
+ * @param m 
+ * @param n 
+ */
+void colLog2SumExp2(const double* mat, double* buf, int m, int n){
+# ifdef TIME_INFO
+    double t1 = wall_time();
+# endif
+
+    int numBlocks = (n + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D;
+    colLog2SumExp2Kernel<<<numBlocks, BLOCK_DIM_1D>>>(mat, buf, m, n);
+
+# ifdef TIME_INFO
+    cudaDeviceSynchronize();
+
+    double t2 = wall_time();
+    printf("colLog2SumExp2 finished in %lf seconds.\n", t2 - t1);
+# endif
+}
+
+__global__ void matDiagAddInplaceKernel(double * mat, double alpha, int dim) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (i < dim)
+    {
+        mat[i * dim + i] += alpha;
+    }
+}
+
+/**
+ * @brief 为方阵对角线上元素加上 alpha
+ * 
+ * @param mat 方阵，大小为 dim 行 dim 列
+ * @param alpha 一个浮点数
+ * @param dim 
+ */
+void matDiagAddInplace(double* mat, double alpha, int dim){
+# ifdef TIME_INFO
+    double t1 = wall_time();
+# endif
+
+    matDiagAddInplaceKernel<<<dim, 1>>>(mat, alpha, dim);
+
+# ifdef TIME_INFO
+    cudaDeviceSynchronize();
+
+    double t2 = wall_time();
+    printf("matDiagAddInplace finished in %lf seconds.\n", t2 - t1);
+# endif
+}
+
+__global__ void matPerRowDivInplaceKernel(double* mat, const double* alphas, int m, int n) {
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (index < m * n)
+    {
+        int i = index / n;
+        int j = index % n;
+
+        mat[i * n + j] /= (alphas[i] + 10 * __DBL_EPSILON__);
+    }
+}
+
+/**
+ * @brief 矩阵原地各行除以各自的一个常数
+ * 
+ * @param mat 矩阵，大小为 m 行 n 列
+ * @param alphas 各行对应的常数组成的数组，共 m 个常数
+ * @param m 
+ * @param n 
+ */
+void matPerRowDivInplace(double* mat, const double* alphas, int m, int n) {
+# ifdef TIME_INFO
+    double t1 = wall_time();
+# endif
+
+    int numBlocks = (m * n + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D;
+    matPerRowDivInplaceKernel<<<numBlocks, BLOCK_DIM_1D>>>(mat, alphas, m, n);
+
+# ifdef TIME_INFO
+    cudaDeviceSynchronize();
+
+    double t2 = wall_time();
+    printf("matPerRowDivInplace finished in %lf seconds.\n", t2 - t1);
+# endif
+}
+
+__global__ void matVecColAddInplaceKernel(double* mat, const double* vec, int m, int n) {
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (index < m * n)
+    {
+        int i = index / n;
+        int j = index % n;
+
+        mat[i * n + j] += vec[i];
+    }
+}
+
+/**
+ * @brief 矩阵向量原地按列加法
+ * 
+ * @param mat 矩阵，大小为 m 行 n 列
+ * @param vec 向量，大小为 m 行 1 列
+ * @param m 
+ * @param n 
+ */
+void matVecColAddInplace(double* mat, const double* vec, int m, int n) {
+# ifdef TIME_INFO
+    double t1 = wall_time();
+# endif
+
+    int numBlocks = (m * n + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D;
+    matVecColAddInplaceKernel<<<numBlocks, BLOCK_DIM_1D>>>(mat, vec, m, n);
+
+# ifdef TIME_INFO
+    cudaDeviceSynchronize();
+
+    double t2 = wall_time();
+    printf("matVecColAddInplace finished in %lf seconds.\n", t2 - t1);
+# endif
+}
+
+__global__ void matVecRowSubKernel(const double* mat, const double* vec, double* buf, int m, int n) {
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (index < m * n)
+    {
+        int i = index / n;
+        int j = index % n;
+
+        buf[i * n + j] = mat[i * n + j] - vec[j];
+    }
+}
+
+/**
+ * @brief 矩阵向量按行减法
+ * 
+ * @param mat 矩阵，大小为 m 行 n 列
+ * @param vec 向量，大小为 1 行 n 列
+ * @param buf 按行减法结果，大小为 m 行 n 列
+ * @param m 
+ * @param n 
+ */
+void matVecRowSub(const double* mat, const double* vec, double* buf, int m, int n) {
+# ifdef TIME_INFO
+    double t1 = wall_time();
+# endif
+
+    int numBlocks = (m * n + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D;
+    matVecRowSubKernel<<<numBlocks, BLOCK_DIM_1D>>>(mat, vec, buf, m, n);
+
+# ifdef TIME_INFO
+    cudaDeviceSynchronize();
+
+    double t2 = wall_time();
+    printf("matVecRowSub finished in %lf seconds.\n", t2 - t1);
+# endif
+}
+
+__global__ void matVecRowSubInplaceKernel(double* mat, const double* vec, int m, int n) {
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (index < m * n)
+    {
+        int i = index / n;
+        int j = index % n;
+
+        mat[i * n + j] -= vec[j];
+    }
+}
+
+/**
+ * @brief 矩阵向量原地按行减法
+ * 
+ * @param mat 矩阵，大小为 m 行 n 列
+ * @param vec 向量，大小为 1 行 n 列
+ * @param m 
+ * @param n 
+ */
+void matVecRowSubInplace(double* mat, const double* vec, int m, int n) {
+# ifdef TIME_INFO
+    double t1 = wall_time();
+# endif
+
+    int numBlocks = (m * n + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D;
+    matVecRowSubInplaceKernel<<<numBlocks, BLOCK_DIM_1D>>>(mat, vec, m, n);
+
+# ifdef TIME_INFO
+    cudaDeviceSynchronize();
+
+    double t2 = wall_time();
+    printf("matVecRowSubInplace finished in %lf seconds.\n", t2 - t1);
+# endif
+}
+
+__global__ void rowSumSquareKernel(const double* mat, double* buf, int m, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+
+    double sum = 0.0;
+
+    for (int j = 0; j < n; j++)
+    {
+        double a = mat[i * n + j];
+        sum += a * a;
+    }
+
+    buf[i] = sum;
+}
+
+/**
+ * @brief 计算矩阵各行的元素平方之和
+ * 
+ * @param mat 矩阵，大小为 m 行 n 列
+ * @param buf 各行元素平方之和结果，大小为 m
+ * @param m 
+ * @param n 
+ */
+void rowSumSquare(const double* mat, double* buf, int m, int n) {
+# ifdef TIME_INFO
+    double t1 = wall_time();
+# endif
+
+    int numBlocks = (m + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D;
+    rowSumSquareKernel<<<numBlocks, BLOCK_DIM_1D>>>(mat, buf, m, n);
+
+# ifdef TIME_INFO
+    cudaDeviceSynchronize();
+
+    double t2 = wall_time();
+    printf("rowSumSquare finished in %lf seconds.\n", t2 - t1);
 # endif
 }
