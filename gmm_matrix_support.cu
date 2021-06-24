@@ -620,3 +620,151 @@ void rowSumSquare(const double* mat, double* buf, int m, int n) {
     printf("rowSumSquare finished in %lf seconds.\n", t2 - t1);
 # endif
 }
+
+/**
+ * @brief 为数组中所有元素加上 alpha
+ * 
+ * @param arr 数组，大小为 n
+ * @param alpha 一个浮点数
+ * @param n 
+ */
+__global__ void allAddInplaceKernel(double* arr, double alpha, int n){
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if(i < n)
+    {
+        arr[i] += alpha;
+    }
+}
+
+void allAddInplace(double* arr, double alpha, int n){
+# ifdef TIME_INFO
+    double t1 = wall_time();
+# endif
+    int numBlocks = (n + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D;
+    allAddInplaceKernel<<<numBlocks, BLOCK_DIM_1D>>>(arr, alpha, n);
+# ifdef TIME_INFO
+    cudaDeviceSynchronize();
+
+    double t2 = wall_time();
+    printf("allAddInplace finished in %lf seconds.\n", t2 - t1);
+# endif
+}
+
+
+/**
+ * @brief 为数组中所有元素除以 alpha
+ * 
+ * @param arr 数组，大小为 n
+ * @param alpha 一个浮点数
+ * @param n 
+ */
+__global__ void allDivInplaceKernel(double* arr, double alpha, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if(i < n)
+    {
+        arr[i] /= alpha;
+    }
+}
+
+void allDivInplace(double* arr, double alpha, int n){
+# ifdef TIME_INFO
+    double t1 = wall_time();
+# endif
+    int numBlocks = (n + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D;
+    allDivInplaceKernel<<<numBlocks, BLOCK_DIM_1D>>>(arr, alpha, n);
+# ifdef TIME_INFO
+    cudaDeviceSynchronize();
+
+    double t2 = wall_time();
+    printf("allDivInplace finished in %lf seconds.\n", t2 - t1);
+# endif
+}
+
+
+/**
+ * @brief 对数组中所有元素取指数(以 2 为底）
+ * 
+ * @param arr 数组，大小为 n
+ * @param n 
+ */
+__global__ void allExp2InplaceKernel(double* arr, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if(i < n)
+    {
+        arr[i] = exp2(arr[i]);
+    }
+}
+
+void allExp2Inplace(double* arr, int n){
+# ifdef TIME_INFO
+    double t1 = wall_time();
+# endif
+    int numBlocks = (n + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D;
+    allExp2InplaceKernel<<<numBlocks, BLOCK_DIM_1D>>>(arr, n);
+# ifdef TIME_INFO
+    cudaDeviceSynchronize();
+
+    double t2 = wall_time();
+    printf("allExp2Inplace finished in %lf seconds.\n", t2 - t1);
+# endif
+}
+
+
+/**
+ * @brief 对数组中所有元素取对数（以 2 为底）
+ * 
+ * @param arr 数组，大小为 n
+ * @param buf 对数结果，大小为 n
+ * @param n 
+ */
+__global__ void allLog2Kernel(const double* arr, double* buf, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if(i < n)
+    {
+        buf[i] = log2(arr[i]);
+    }
+}
+
+void allLog2(const double* arr, double* buf, int n){
+# ifdef TIME_INFO
+    double t1 = wall_time();
+# endif
+    int numBlocks = (n + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D;
+    allLog2Kernel<<<numBlocks, BLOCK_DIM_1D>>>(arr, buf, n);
+# ifdef TIME_INFO
+    cudaDeviceSynchronize();
+
+    double t2 = wall_time();
+    printf("allLog2 finished in %lf seconds.\n", t2 - t1);
+# endif
+}
+
+
+/**
+ * @brief 为数组中所有元素乘上 alpha
+ * 
+ * @param arr 数组，大小为 n
+ * @param alpha 一个浮点数
+ * @param n 
+ */
+__global__ void allMulInplaceKernel(double* arr, double alpha, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if(i < n)
+    {
+        arr[i] *= alpha;
+    }
+}
+
+void allMulInplace(double* arr, double alpha, int n){
+# ifdef TIME_INFO
+    double t1 = wall_time();
+# endif
+    int numBlocks = (n + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D;
+    allMulInplaceKernel<<<numBlocks, BLOCK_DIM_1D>>>(arr, alpha, n);
+# ifdef TIME_INFO
+    cudaDeviceSynchronize();
+
+    double t2 = wall_time();
+    printf("allMulInplace finished in %lf seconds.\n", t2 - t1);
+# endif
+}

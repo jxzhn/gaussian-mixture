@@ -232,9 +232,16 @@ void rowSumSquare(const double* mat, double* buf, int m, int n){
  * @param n 
  */
 void allAddInplace(double* arr, double alpha, int n){
+# ifdef TIME_INFO
+    double t1 = wall_time();
+# endif
     for(int i = 0; i < n; i++){
         arr[i] += alpha;
     }
+# ifdef TIME_INFO
+    double t2 = wall_time();
+    printf("matMul finished in %lf seconds.\n", t2 - t1);
+# endif
 }
 
 /**
@@ -245,9 +252,16 @@ void allAddInplace(double* arr, double alpha, int n){
  * @param n 
  */
 void allMulInplace(double* arr, double alpha, int n){
+# ifdef TIME_INFO
+    double t1 = wall_time();
+# endif
      for(int i = 0; i < n; i++){
         arr[i] *= alpha;
     }
+# ifdef TIME_INFO
+    double t2 = wall_time();
+    printf("matMul finished in %lf seconds.\n", t2 - t1);
+# endif
 }
 
 /**
@@ -296,9 +310,16 @@ void colLog2SumExp2(const double* mat, double* buf, int m, int n){
  * @param n 
  */
 void allLog2(const double* arr, double* buf, int n){
+# ifdef TIME_INFO
+    double t1 = wall_time();
+# endif
     for(int i = 0; i < n; i++){
         buf[i] = log2(arr[i]);
     }
+# ifdef TIME_INFO
+    double t2 = wall_time();
+    printf("allLog2 finished in %lf seconds.\n", t2 - t1);
+# endif
 }
 
 /**
@@ -375,9 +396,16 @@ void matVecRowSubInplace(double* mat, const double* vec, int m, int n) {
  * @param n 
  */
 void allExp2Inplace(double* arr, int n) {
+# ifdef TIME_INFO
+    double t1 = wall_time();
+# endif
     for (int i = 0; i < n; i++) {
         arr[i] = exp2(arr[i]);
     }
+# ifdef TIME_INFO
+    double t2 = wall_time();
+    printf("matMul finished in %lf seconds.\n", t2 - t1);
+# endif
 }
 
 /**
@@ -476,7 +504,14 @@ void matPerRowDivInplace(double* mat, const double* alphas, int m, int n) {
  * @param n 
  */
 void allDivInplace(double* arr, double alpha, int n) {
+# ifdef TIME_INFO
+    double t1 = wall_time();
+# endif
     for (int i = 0; i < n; i++) {
         arr[i] /= alpha;
     }    
+# ifdef TIME_INFO
+    double t2 = wall_time();
+    printf("matMul finished in %lf seconds.\n", t2 - t1);
+# endif
 }

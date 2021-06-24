@@ -9,3 +9,5 @@ data/
 # build directory
 build/
 tmp_build/
+# jupyter notebook
+.ipynb_checkpoints
