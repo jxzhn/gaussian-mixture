@@ -185,7 +185,7 @@ void allExp2Inplace(double* arr, int n);
  * @param tmp 一个用来存储中间规约结果的临时数组，大小至少应为 (n + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D
  * @return double 所有元素的平均值
  */
-double arrMean(double* arr, int n, double* tmp);
+double arrMean(const double* arr, int n, double* tmp);
 
 # else // GPU_VERSION
 
@@ -196,7 +196,7 @@ double arrMean(double* arr, int n, double* tmp);
  * @param n 
  * @return double 所有元素的平均值
  */
-double arrMean(double* arr, int n);
+double arrMean(const double* arr, int n);
 
 # endif // GPU_VERSION
 
