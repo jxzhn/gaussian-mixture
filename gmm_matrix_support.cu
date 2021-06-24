@@ -766,3 +766,73 @@ void allMulInplace(double* arr, double alpha, int n){
     printf("allMulInplace finished in %lf seconds.\n", t2 - t1);
 # endif
 }
+
+/**
+ * @brief 求数组中所有元素平均值
+ * 
+ * @param arr 数组，大小为 n
+ * @param n 
+ * @return double 所有元素的平均值
+ */
+ __device__ void warpReduce(volatile double* sdata, int tid) {
+    sdata[tid] += sdata[tid + 32];
+    sdata[tid] += sdata[tid + 16];
+    sdata[tid] += sdata[tid + 8];
+    sdata[tid] += sdata[tid + 4];
+    sdata[tid] += sdata[tid + 2];
+    sdata[tid] += sdata[tid + 1];
+}
+__global__ void arrMeanKernel(double* arr, double* tmp, int n) 
+{
+    extern __shared__ double shared_data[];
+    double* sdata = (double*)shared_data;
+    int tid = threadIdx.x;
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    sdata[tid] = i < n ? arr[i] : 0.0f;
+    __syncthreads();
+    
+    for (unsigned int s = blockDim.x / 2; s > 32; s >>= 1) 
+    {
+        if (tid < s) 
+        {
+            sdata[tid] += sdata[tid + s];
+        }
+        __syncthreads();
+    }
+    
+   if (tid<32) warpReduce(sdata, tid);
+   if (tid == 0) tmp[blockIdx.x] = sdata[0]; 
+}
+double arrMean(double* arr, int n, double* tmp) 
+{
+# ifdef TIME_INFO
+    double t1 = wall_time();
+# endif
+
+    double* buffer[2] = {arr, tmp};
+    int idx = 0;
+    int numBlocks = (n + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D; 
+    arrMeanKernel<<<numBlocks, BLOCK_DIM_1D, sizeof(double) * BLOCK_DIM_1D>>>(buffer[idx], buffer[!idx], n);
+    int lastNumBlocks = numBlocks;
+    while(lastNumBlocks > BLOCK_DIM_1D)
+    {
+        idx = !idx;
+        numBlocks = (lastNumBlocks + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D; 
+        arrMeanKernel<<<numBlocks, BLOCK_DIM_1D, sizeof(double) * BLOCK_DIM_1D>>>(buffer[idx], buffer[!idx], lastNumBlocks);
+        lastNumBlocks = numBlocks;
+    }
+    if(lastNumBlocks > 1){
+        idx = !idx;
+        arrMeanKernel<<<1, BLOCK_DIM_1D, sizeof(double) * BLOCK_DIM_1D>>>(buffer[idx], buffer[!idx], lastNumBlocks);
+    }
+    double res = 0.0f;
+    cudaMemcpy(&res, buffer[!idx], sizeof(double), cudaMemcpyDeviceToHost);
+    
+# ifdef TIME_INFO
+    cudaDeviceSynchronize();
+
+    double t2 = wall_time();
+    printf("arrMean finished in %lf seconds.\n", t2 - t1);
+# endif
+    return res / n;
+}

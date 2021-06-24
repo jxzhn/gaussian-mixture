@@ -416,10 +416,17 @@ void allExp2Inplace(double* arr, int n) {
  * @return double 所有元素的平均值
  */
 double arrMean(double* arr, int n) {
+# ifdef TIME_INFO
+    double t1 = wall_time();
+# endif
     double sum = 0;
     for (int i = 0; i < n; i++) {
         sum += arr[i];
     }
+# ifdef TIME_INFO
+    double t2 = wall_time();
+    printf("matMul finished in %lf seconds.\n", t2 - t1);
+# endif
     return sum/n;
 }
 
