@@ -368,7 +368,9 @@
   */
  __global__ void allAddInplaceKernel(double* arr, double alpha, int n){
      int i = blockIdx.x * blockDim.x + threadIdx.x;
-     arr[i] += alpha;
+     if(i < dim){
+         arr[i] += alpha;
+     }
  }
  
  void allAddInplace(double* arr, double alpha, int n){
@@ -395,7 +397,9 @@
   */
  __global__ void allDivInplaceKernel(double* arr, double alpha, int n) {
      int i = blockIdx.x * blockDim.x + threadIdx.x;
-     arr[i] /= alpha;
+     if(i < dim){
+         arr[i] /= alpha;
+     }
  }
  
  void allDivInplace(double* arr, double alpha, int n){
@@ -421,7 +425,9 @@
   */
  __global__ void allExp2InplaceKernel(double* arr, int n) {
      int i = blockIdx.x * blockDim.x + threadIdx.x;
-     arr[i] = exp2(arr[i]);
+     if(i < dim){
+         arr[i] = exp2(arr[i]);
+     }
  }
  
  void allExp2Inplace(double* arr, int n){
@@ -448,7 +454,9 @@
   */
  __global__ void allLog2Kernel(const double* arr, double* buf, int n) {
      int i = blockIdx.x * blockDim.x + threadIdx.x;
-     buf[i] = log2(arr[i]);
+     if(i < dim){
+         buf[i] = log2(arr[i]);
+     }
  }
  
  void allLog2(const double* arr, double* buf, int n){
@@ -475,7 +483,9 @@
   */
  __global__ void allMulInplaceKernel(double* arr, double alpha, int n) {
      int i = blockIdx.x * blockDim.x + threadIdx.x;
-     arr[i] *= alpha;
+     if(i < dim){
+         arr[i] *= alpha;
+     }
  }
  
  void allMulInplace(double* arr, double alpha, int n){
@@ -491,3 +501,5 @@
      printf("allMulInplace finished in %lf seconds.\n", t2 - t1);
  # endif
  }
+ 
+ 
