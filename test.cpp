@@ -2,6 +2,12 @@
 # include <stdio.h>
 # include <sys/time.h>
 
+inline double wall_time() {
+    timeval t;
+    gettimeofday(&t, NULL);
+    return t.tv_sec + t.tv_usec / 1e6;
+}
+
 extern "C" {
 
 __attribute__((visibility ("default")))

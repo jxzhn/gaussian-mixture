@@ -7,19 +7,6 @@
  * @copyright Copyright (c) 2021
  */
 
-# include <stdio.h>
-# include <stdlib.h>
-# include <sys/time.h>
-# include <memory.h>
-# include <math.h>
-# include "gmm_matrix_support.h"
-
-inline double wall_time() {
-    timeval t;
-    gettimeofday(&t, NULL);
-    return t.tv_sec + t.tv_usec / 1e6;
-}
-
 /**
  * @brief 高斯混合模型实现类
  */
@@ -39,12 +26,14 @@ private:
     bool memoryMalloced; // 判断内存是由构造函数创建的还是外部传进来的
 
     /**
-     * @brief 使用随机法初始化高斯混合模型的参数
+     * @brief 初始化高斯混合模型的参数
      * 
      * @param data 拟合数据，大小为 numData 行 dim 列
      * @param numData 见上
+     * @param xSubMuBuf 临时存放 xSubMu 的 buffer，大小为 numData 行 dim 列
+     * @param meanBuf 临时存放 mean 的 buffer，大小为 dim
      */
-    void initParameter(const double* data, int numData);
+    void initParameter(const double* data, int numData, double* xSubMuBuf, double* meanBuf);
 
     /**
      * @brief 计算所有数据对应各个聚类的对数概率密度
@@ -52,8 +41,11 @@ private:
      * @param data 拟合数据，大小为 numData 行 dim 列
      * @param logDensity 对数概率密度输出，大小为 nComponent 行 numData 列
      * @param numData 见上
+     * @param lowerMatBuf 临时存放 cholsky 分解得到的下三角矩阵的 buffer，大小为 dim 行 dim 列
+     * @param xSubMuBuf 临时存放 x - mu 的 buffer，大小为 numData 行 dim 列
+     * @param covSolBuf 临时存放 Ly = x - mu 的解的 buffer，大小为 numData 行 dim 列
      */
-    void logProbabilityDensity(const double* data, double* logDensity, int numData);
+    void logProbabilityDensity(const double* data, double* logDensity, int numData, double* lowerMatBuf, double* xSubMuBuf, double* covSolBuf);
 
 public:
     /**
