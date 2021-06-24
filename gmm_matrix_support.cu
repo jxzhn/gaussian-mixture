@@ -46,7 +46,7 @@ __global__ void dataAverageCovarianceKernel(const double* xSubMu, const double* 
 
         tile1[ty][tx] = (i < dim && x < m) ? xSubMu[x * dim + i] : 0.0;
         tile1[ty + BLOCK_DIM_2D / 2][tx] = ((i + BLOCK_DIM_2D / 2) < dim && x < m) ? xSubMu[x * dim + (i + BLOCK_DIM_2D / 2)] : 0.0;
-    
+
         int y = t * BLOCK_DIM_2D + ty;
 
         tile2[ty][tx] = (y < m && j < dim) ? xSubMu[y * dim + j] : 0.0;
@@ -186,7 +186,7 @@ __global__ void matCholeskyDiagKernel(const double* mat, double* buf, int m, int
     {
         sum += buf[k * m +i] * buf[k * m + i];
     }
-    
+
     buf[k * m + k] = sqrt(mat[k * m + k] - sum);
 }
 
@@ -783,15 +783,14 @@ __device__ void warpReduce(volatile double* sdata, int tid) {
     sdata[tid] += sdata[tid + 2];
     sdata[tid] += sdata[tid + 1];
 }
-__global__ void arrMeanKernel(const double* arr, double* tmp, int n) 
-{
-    extern __shared__ double shared_data[];
-    double* sdata = (double*)shared_data;
+
+__global__ void arrMeanKernel(const double* arr, double* tmp, int n) {
+    __shared__ double sdata[BLOCK_DIM_1D];
     int tid = threadIdx.x;
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     sdata[tid] = i < n ? arr[i] : 0.0f;
     __syncthreads();
-    
+
     for (unsigned int s = blockDim.x / 2; s > 32; s >>= 1) 
     {
         if (tid < s) 
@@ -800,33 +799,35 @@ __global__ void arrMeanKernel(const double* arr, double* tmp, int n)
         }
         __syncthreads();
     }
-    
-if (tid<32)warpReduce(sdata, tid);
-if (tid == 0)
+
+    if (tid < 32)
+    {
+        warpReduce(sdata, tid);
+    }
+    if (tid == 0)
     {
         tmp[blockIdx.x] = sdata[0];
     } 
 }
-double arrMean(const double* arr, int n, double* tmp) 
-{
+
+double arrMean(const double* arr, int n, double* tmp) {
 # ifdef TIME_INFO
     double t1 = wall_time();
 # endif
     int numBlocks = (n + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D; 
-    arrMeanKernel<<<numBlocks, BLOCK_DIM_1D, sizeof(double) * BLOCK_DIM_1D>>>(arr, tmp, n);
+    arrMeanKernel<<<numBlocks, BLOCK_DIM_1D>>>(arr, tmp, n);
     int lastNumBlocks = numBlocks;
     while(lastNumBlocks > BLOCK_DIM_1D)
     {
         numBlocks = (lastNumBlocks + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D; 
-        arrMeanKernel<<<numBlocks, BLOCK_DIM_1D, sizeof(double) * BLOCK_DIM_1D>>>(tmp, tmp, lastNumBlocks);
+        arrMeanKernel<<<numBlocks, BLOCK_DIM_1D>>>(tmp, tmp, lastNumBlocks);
         lastNumBlocks = numBlocks;
     }
     if(lastNumBlocks > 1){
-        arrMeanKernel<<<1, BLOCK_DIM_1D, sizeof(double) * BLOCK_DIM_1D>>>(tmp, tmp, lastNumBlocks);
+        arrMeanKernel<<<1, BLOCK_DIM_1D>>>(tmp, tmp, lastNumBlocks);
     }
     double res;
     cudaMemcpy(&res, tmp, sizeof(double), cudaMemcpyDeviceToHost);
-    
 # ifdef TIME_INFO
     cudaDeviceSynchronize();
 
@@ -834,4 +835,76 @@ double arrMean(const double* arr, int n, double* tmp)
     printf("arrMean finished in %lf seconds.\n", t2 - t1);
 # endif
     return res / n;
+}
+
+/**
+* @brief 求矩阵每一列的均值
+* 
+* @param mat 矩阵，大小为 m 行 n 列
+* @param buf 每一列的均值结果，大小为 n
+* @param m 
+* @param n 
+*/
+__global__ void matColMeanDiv(double* buf, int m, int n, double* tmp) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if(i < n){
+        buf[i] = tmp[i] / m;
+    }
+}
+
+__global__ void matColMeanKernel(const double* mat, int m, int n, double* tmp) {
+    __shared__ double sdata[BLOCK_DIM_1D];
+    int tid_x = threadIdx.x;
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int j = blockIdx.y;
+    sdata[tid_x] = (i < m) && (j < n) ? mat[i * n + j] : 0.0f;
+    __syncthreads();
+    for (unsigned int s = blockDim.x / 2; s > 32; s >>= 1) 
+    {
+        if (tid_x < s) 
+        {
+            sdata[tid_x] += sdata[tid_x + s];
+        }
+        __syncthreads();
+        
+    }
+    if (tid_x < 32)
+    {
+        warpReduce(sdata, tid_x);
+    }
+    if (tid_x == 0)
+    {
+        tmp[blockIdx.x * gridDim.y + j] = sdata[0];
+    }
+
+}
+void matColMean(const double* mat, double* buf, int m, int n, double* tmp) 
+{
+# ifdef TIME_INFO
+    double t1 = wall_time();
+# endif
+    int grid_DIM_1D = (m + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D;
+    int grid_DIM_2D = n;
+    
+    constexpr dim3 blockSize(BLOCK_DIM_1D);
+    dim3 gridSize(grid_DIM_1D, grid_DIM_2D);
+    matColMeanKernel<<<gridSize, blockSize>>>(mat, m, n, tmp); 
+
+    int lastGrid_DIM_1D = grid_DIM_1D;
+    while(lastGrid_DIM_1D > 1)
+    {
+        grid_DIM_1D = (lastGrid_DIM_1D + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D; 
+        dim3 gridSize(grid_DIM_1D, grid_DIM_2D);
+        matColMeanKernel<<<gridSize, blockSize>>>(tmp, lastGrid_DIM_1D, grid_DIM_2D , tmp);
+        lastGrid_DIM_1D = grid_DIM_1D;
+    }
+    int blockNums = (n + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D;
+    matColMeanDiv<<<blockNums, BLOCK_DIM_1D>>>(buf, m, n, tmp);
+    
+# ifdef TIME_INFO
+    cudaDeviceSynchronize();
+    
+    double t2 = wall_time();
+    printf("matColMean finished in %lf seconds.\n", t2 - t1);
+# endif
 }

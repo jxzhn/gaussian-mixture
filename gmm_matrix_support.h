@@ -28,6 +28,20 @@ constexpr int BLOCK_DIM_2D = 16;
 extern "C" {
 # endif
 
+# ifdef GPU_VERSION
+/**
+ * @brief 求矩阵每一列的均值
+ * 
+ * @param mat 矩阵，大小为 m 行 n 列
+ * @param buf 每一列的均值结果，大小为 n
+ * @param m 
+ * @param n 
+ * @param tmp 一个用来存储中间规约结果的临时数组，大小至少应为 n * (m + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D
+ */
+void matColMean(const double* mat, double* buf, int m, int n, double* tmp);
+
+# else // GPU_VERSION
+
 
 /**
  * @brief 求矩阵每一列的均值
@@ -38,6 +52,9 @@ extern "C" {
  * @param n 
  */
 void matColMean(const double* mat, double* buf, int m, int n);
+
+# endif // GPU_VERSION
+
 
 /**
  * @brief 求数据的协方差

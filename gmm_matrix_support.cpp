@@ -32,6 +32,9 @@ inline double wall_time() {
  */
 void matColMean(const double* mat, double* buf, int m, int n) {
     // TODO: 这个 CPU 访存连续性不是很好，但 CUDA 应该要用这种方式
+# ifdef TIME_INFO
+    double t1 = wall_time();
+# endif
     for (int j = 0; j < n; ++j) {
         double sum = 0.0;
         for (int i = 0; i < m; ++i) {
@@ -39,6 +42,10 @@ void matColMean(const double* mat, double* buf, int m, int n) {
         }
         buf[j] = sum * (1.0 / m);
     }
+# ifdef TIME_INFO
+    double t2 = wall_time();
+    printf("dataCovariance finished in %lf seconds.\n", t2 - t1);
+# endif
 }
 
 /**
