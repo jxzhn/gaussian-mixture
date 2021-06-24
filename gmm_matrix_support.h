@@ -10,6 +10,19 @@
 # ifndef GMM_MATRIX_SUPORT_H_
 # define GMM_MATRIX_SUPORT_H_
 
+# ifdef GPU_VERSION
+
+# ifdef __cplusplus
+constexpr int BLOCK_DIM_1D = 256;
+constexpr int BLOCK_DIM_2D = 16;
+# else // __cplusplus
+# define BLOCK_DIM_1D = 256;
+# define BLOCK_DIM_2D = 16;
+# endif // __cplusplus
+
+# endif // GPU_VERSION
+
+
 # ifdef __cplusplus
 extern "C" {
 # endif
@@ -54,6 +67,19 @@ void matDiagAddInplace(double* mat, double alpha, int dim);
  */
 void matCholesky(const double* mat, double* buf, int m);
 
+# ifdef GPU_VERSION
+/**
+ * @brief 计算一个方阵对角线上元素的对数（以 2 为底）之和
+ * 
+ * @param mat 矩阵，大小为 dim 行 dim 列
+ * @param dim 
+ * @param tmp 一个用来存储中间规约结果的临时数组，大小至少应为 (n + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D
+ * @return double 对角线上元素的对数之和
+ */
+double sumLog2Diag(double* arr, int n, double* tmp);
+
+# else // CPU_VERSION
+
 /**
  * @brief 计算一个方阵对角线上元素的对数（以 2 为底）之和
  * 
@@ -62,6 +88,10 @@ void matCholesky(const double* mat, double* buf, int m);
  * @return double 对角线上元素的对数之和
  */
 double sumLog2Diag(const double* mat, int dim);
+
+# endif // GPU_VERSION
+
+
 
 /**
  * @brief 矩阵向量按行减法

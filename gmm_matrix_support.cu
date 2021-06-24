@@ -6,7 +6,7 @@
  * @date 2021-06-22
  * @copyright Copyright (c) 2021
  */
-
+# define GPU_VERSION
 # include "gmm_matrix_support.h"
 
 # include <cuda_runtime.h>
@@ -767,4 +767,28 @@ void allMulInplace(double* arr, double alpha, int n){
     double t2 = wall_time();
     printf("allMulInplace finished in %lf seconds.\n", t2 - t1);
 # endif
+}
+
+
+
+/**
+ * @brief 计算一个方阵对角线上元素的对数（以 2 为底）之和
+ * 
+ * @param mat 矩阵，大小为 dim 行 dim 列
+ * @param dim 
+ * @return double 对角线上元素的对数之和
+ */
+__global__ double sumLog2Diag(const double* mat, int dim, double *tmp){
+
+    int tid = threadIdx.x;
+    int i = blockIdx.x*blockDim.x + threadIdx.x;
+    
+
+    double sum = 0.0;
+    for (int s = 1; s < blockDIm.x; s *= 2) {
+        for(int i = 0; i < n / BLOCK_DIM; i++) {
+            sum += log2(mat[i * dim + i]);
+        }
+    }
+    return sum;
 }
