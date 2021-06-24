@@ -767,6 +767,7 @@ void allMulInplace(double* arr, double alpha, int n){
 # endif
 }
 
+
 /**
  * @brief 求数组中所有元素平均值
  * 
@@ -782,7 +783,7 @@ void allMulInplace(double* arr, double alpha, int n){
     sdata[tid] += sdata[tid + 2];
     sdata[tid] += sdata[tid + 1];
 }
-__global__ void arrMeanKernel(double* arr, double* tmp, int n) 
+__global__ void arrMeanKernel(const double* arr, double* tmp, int n) 
 {
     extern __shared__ double shared_data[];
     double* sdata = (double*)shared_data;
@@ -800,33 +801,34 @@ __global__ void arrMeanKernel(double* arr, double* tmp, int n)
         __syncthreads();
     }
     
-   if (tid<32) warpReduce(sdata, tid);
-   if (tid == 0) tmp[blockIdx.x] = sdata[0]; 
+   if (tid<32)warpReduce(sdata, tid);
+   if (tid == 0)
+    {
+        tmp[blockIdx.x] = sdata[0];
+    } 
 }
-double arrMean(double* arr, int n, double* tmp) 
+double arrMean(const double* arr, int n, double* tmp) 
 {
 # ifdef TIME_INFO
     double t1 = wall_time();
 # endif
-
-    double* buffer[2] = {arr, tmp};
     int idx = 0;
     int numBlocks = (n + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D; 
-    arrMeanKernel<<<numBlocks, BLOCK_DIM_1D, sizeof(double) * BLOCK_DIM_1D>>>(buffer[idx], buffer[!idx], n);
+    arrMeanKernel<<<numBlocks, BLOCK_DIM_1D, sizeof(double) * BLOCK_DIM_1D>>>(arr, tmp, n);
     int lastNumBlocks = numBlocks;
     while(lastNumBlocks > BLOCK_DIM_1D)
     {
         idx = !idx;
         numBlocks = (lastNumBlocks + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D; 
-        arrMeanKernel<<<numBlocks, BLOCK_DIM_1D, sizeof(double) * BLOCK_DIM_1D>>>(buffer[idx], buffer[!idx], lastNumBlocks);
+        arrMeanKernel<<<numBlocks, BLOCK_DIM_1D, sizeof(double) * BLOCK_DIM_1D>>>(tmp, tmp, lastNumBlocks);
         lastNumBlocks = numBlocks;
     }
     if(lastNumBlocks > 1){
         idx = !idx;
-        arrMeanKernel<<<1, BLOCK_DIM_1D, sizeof(double) * BLOCK_DIM_1D>>>(buffer[idx], buffer[!idx], lastNumBlocks);
+        arrMeanKernel<<<1, BLOCK_DIM_1D, sizeof(double) * BLOCK_DIM_1D>>>(tmp, tmp, lastNumBlocks);
     }
     double res = 0.0f;
-    cudaMemcpy(&res, buffer[!idx], sizeof(double), cudaMemcpyDeviceToHost);
+    cudaMemcpy(&res, tmp, sizeof(double), cudaMemcpyDeviceToHost);
     
 # ifdef TIME_INFO
     cudaDeviceSynchronize();

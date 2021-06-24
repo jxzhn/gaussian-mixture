@@ -415,7 +415,7 @@ void allExp2Inplace(double* arr, int n) {
  * @param n 
  * @return double 所有元素的平均值
  */
-double arrMean(double* arr, int n) {
+double arrMean(const double* arr, int n) {
 # ifdef TIME_INFO
     double t1 = wall_time();
 # endif
