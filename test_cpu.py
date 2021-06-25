@@ -1,9 +1,9 @@
 import ctypes
 import numpy as np
 
-test = ctypes.cdll.LoadLibrary('./build/libtest.so')
+gmm = ctypes.cdll.LoadLibrary('./build/libgmm.so')
 # 设置参数类型
-test.gmmFit.argtypes = [
+gmm.gmmFit.argtypes = [
     np.ctypeslib.ndpointer(dtype=np.float64, ndim=2, flags='C_CONTIGUOUS'),
     np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),
     np.ctypeslib.ndpointer(dtype=np.float64, ndim=2, flags='C_CONTIGUOUS'),
@@ -40,7 +40,7 @@ test.gmmFit.argtypes = [
 # means = np.empty((2, 3), dtype=np.float64)
 # covariances = np.empty((2, 3, 3), dtype=np.float64)
 
-# test.gmmFit(data, weights, means, covariances, data.shape[0], data.shape[1], 2, 1e-6, 300)
+# gmm.gmmFit(data, weights, means, covariances, data.shape[0], data.shape[1], 2, 1e-6, 300)
 
 # print(weights)
 # print(means)
@@ -54,4 +54,4 @@ weights = np.empty(10, dtype=np.float64)
 means = np.empty((10, 784), dtype=np.float64)
 covariances = np.empty((10, 784, 784), dtype=np.float64)
 
-test.gmmFit(data, weights, means, covariances, data.shape[0], data.shape[1], 10, 1e-6, 300)
+gmm.gmmFit(data, weights, means, covariances, data.shape[0], data.shape[1], 10, 1e-6, 300)

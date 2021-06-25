@@ -1,9 +1,9 @@
 import ctypes
 import cupy
 
-test = ctypes.cdll.LoadLibrary('./build/libtest.so')
+gmm = ctypes.cdll.LoadLibrary('./build/libgmm.so')
 # 设置参数类型
-test.gmmFit.argtypes = [
+gmm.gmmFit.argtypes = [
     ctypes.POINTER(ctypes.c_double),
     ctypes.POINTER(ctypes.c_double),
     ctypes.POINTER(ctypes.c_double),
@@ -40,7 +40,7 @@ test.gmmFit.argtypes = [
 # means = cupy.empty((2, 3), dtype=cupy.float64)
 # covariances = cupy.empty((2, 3, 3), dtype=cupy.float64)
 
-# test.gmmFit(
+# gmm.gmmFit(
 #     ctypes.cast(data.data.ptr, ctypes.POINTER(ctypes.c_double)),
 #     ctypes.cast(weights.data.ptr, ctypes.POINTER(ctypes.c_double)),
 #     ctypes.cast(means.data.ptr, ctypes.POINTER(ctypes.c_double)),
@@ -64,7 +64,7 @@ weights = cupy.empty(10, dtype=cupy.float64)
 means = cupy.empty((10, 784), dtype=cupy.float64)
 covariances = cupy.empty((10, 784, 784), dtype=cupy.float64)
 
-test.gmmFit(
+gmm.gmmFit(
     ctypes.cast(data.data.ptr, ctypes.POINTER(ctypes.c_double)),
     ctypes.cast(weights.data.ptr, ctypes.POINTER(ctypes.c_double)),
     ctypes.cast(means.data.ptr, ctypes.POINTER(ctypes.c_double)),

@@ -10,10 +10,12 @@ gmm_matrix_support.sumLog2Diag.argtypes = [
 ]
 gmm_matrix_support.sumLog2Diag.restype = ctypes.c_double
 
+BLOCK_DIM_1D = 256
+
 testcase = cupy.random.rand(1000, 1000) * 2.33 + 0.66
 answer = cupy.sum(cupy.log2(cupy.diag(testcase)))
 
-tmp = cupy.empty(1000, dtype=cupy.float64)
+tmp = cupy.empty((1000 + BLOCK_DIM_1D - 1) // BLOCK_DIM_1D, dtype=cupy.float64)
 output = gmm_matrix_support.sumLog2Diag(ctypes.cast(testcase.data.ptr, ctypes.POINTER(ctypes.c_double)), testcase.shape[0], ctypes.cast(tmp.data.ptr, ctypes.POINTER(ctypes.c_double)))
 
 
