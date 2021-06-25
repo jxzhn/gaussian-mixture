@@ -76,9 +76,9 @@ void matCholesky(const double* mat, double* buf, int m);
  * @param tmp 一个用来存储中间规约结果的临时数组，大小至少应为 (n + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D
  * @return double 对角线上元素的对数之和
  */
-double sumLog2Diag(double* arr, int n, double* tmp);
+double sumLog2Diag(const double* mat, int dim, double* tmp);
 
-# else // CPU_VERSION
+# else // GPU_VERSION
 
 /**
  * @brief 计算一个方阵对角线上元素的对数（以 2 为底）之和

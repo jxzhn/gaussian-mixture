@@ -10,6 +10,7 @@
 # define GPU_VERSION
 # include "gmm_matrix_support.h"
 
+
 # include <cuda_runtime.h>
 
 # ifdef TIME_INFO
@@ -834,4 +835,99 @@ double arrMean(const double* arr, int n, double* tmp)
     printf("arrMean finished in %lf seconds.\n", t2 - t1);
 # endif
     return res / n;
+}
+
+/**
+ * @brief 计算一个方阵对角线上元素的对数（以 2 为底）之和
+ * 
+ * @param mat 矩阵，大小为 dim 行 dim 列
+ * @param dim 
+ * @return double 对角线上元素的对数之和
+ */
+__global__ void sumLog2DiagFirstKernel(const double* mat, int dim, double* tmp) {
+    __shared__ double sdata[BLOCK_DIM_1D];
+    int tid = threadIdx.x;
+    int i = blockIdx.x * (blockDim.x * 2) + threadIdx.x;
+
+    sdata[tid] = i < dim ? log2(mat[i * dim + i]) : 0.0f;
+    sdata[tid] += i + blockDim.x < dim ? log2(mat[(i + blockDim.x) * dim + (i + blockDim.x)]) : 0.0f;
+    __syncthreads();
+
+    for (unsigned int s = blockDim.x/2; s > 32 ; s >>= 1) 
+    {
+        if (tid < s) 
+        {
+            sdata[tid] += sdata[tid + s];
+        }
+        __syncthreads();        
+    }
+    
+    if (tid < 32) 
+    {
+        warpReduce(sdata,tid);
+    }
+
+    if (tid == 0)
+    {
+        tmp[blockIdx.x] = sdata[0];
+    } 
+}
+
+__global__ void sumLog2DiagKernel(const double* mat, int dim, double* tmp) {
+    __shared__ double sdata[BLOCK_DIM_1D];
+    int tid = threadIdx.x;
+    int i = blockIdx.x * (blockDim.x * 2) + threadIdx.x;
+
+    sdata[tid] = i < dim ? mat[i] : 0.0f;
+    sdata[tid] += ( i + blockDim.x < dim ? mat[i + blockDim.x] : 0.0f);
+    __syncthreads();
+
+    for (unsigned int s = blockDim.x/2; s > 32 ; s >>= 1) 
+    {
+        if (tid < s) 
+        {
+            sdata[tid] += sdata[tid + s];
+        }
+        __syncthreads();        
+    }
+    
+    if (tid < 32) 
+    {
+        warpReduce(sdata,tid);
+    }
+
+    if (tid == 0)
+    {
+        tmp[blockIdx.x] = sdata[0];
+    } 
+}
+
+
+
+double sumLog2Diag(const double* mat, int dim, double* tmp) {
+# ifdef TIME_INFO
+    double t1 = wall_time();
+# endif
+    int numBlocks = (dim + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D; 
+    sumLog2DiagFirstKernel<<<numBlocks, BLOCK_DIM_1D>>>(mat, dim, tmp);
+    int lastNumBlocks = numBlocks;
+    while(lastNumBlocks > BLOCK_DIM_1D)
+    {
+        numBlocks = (lastNumBlocks + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D; 
+        sumLog2DiagKernel<<<numBlocks, BLOCK_DIM_1D>>>(tmp, lastNumBlocks, tmp);
+        lastNumBlocks = numBlocks;
+    }
+    if(lastNumBlocks > 1){
+        sumLog2DiagKernel<<<1, BLOCK_DIM_1D>>>(tmp, lastNumBlocks, tmp);
+    }
+    double res;
+    cudaMemcpy(&res, tmp, sizeof(double), cudaMemcpyDeviceToHost);
+    
+# ifdef TIME_INFO
+    cudaDeviceSynchronize();
+
+    double t2 = wall_time();
+    printf("arrMean finished in %lf seconds.\n", t2 - t1);
+# endif
+    return res ;
 }
