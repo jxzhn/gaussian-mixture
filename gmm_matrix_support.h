@@ -218,6 +218,22 @@ double arrMean(const double* arr, int n);
 # endif // GPU_VERSION
 
 
+# ifdef GPU_VERSION
+
+/**
+ * @brief 计算矩阵各行的元素之和
+ * 
+ * @param mat 矩阵，大小为 m 行 n 列
+ * @param buf 各行的元素之和，大小为 m
+ * @param m 
+ * @param n 
+ * @param tmp 一个用来存储中间规约结果的临时数组，大小至少应为 m * (n + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D
+ */
+void rowSum(const double* mat, double* buf, int m, int n, double* tmp);
+
+# else // GPU_VERSION
+
+
 /**
  * @brief 计算矩阵各行的元素之和
  * 
@@ -227,6 +243,8 @@ double arrMean(const double* arr, int n);
  * @param n 
  */
 void rowSum(const double* mat, double* buf, int m, int n);
+
+# endif // GPU_VERSION
 
 /**
  * @brief 矩阵乘法
