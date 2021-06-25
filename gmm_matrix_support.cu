@@ -931,3 +931,75 @@ double sumLog2Diag(const double* mat, int dim, double* tmp) {
 # endif
     return res ;
 }
+
+
+/**
+ * @brief 计算矩阵各行的元素之和
+ * 
+ * @param mat 矩阵，大小为 m 行 n 列
+ * @param buf 各行的元素之和，大小为 m
+ * @param m 
+ * @param n 
+ */
+ __global__ void rowSumKernel(const double* mat, int m, int n, double* tmp, int orig_n, int tmp_n)
+ {
+     __shared__ double sdata[BLOCK_DIM_1D];
+     int tid = threadIdx.y;
+     int i = blockIdx.x * blockDim.x + threadIdx.x;
+     int j = blockIdx.y * blockDim.y + threadIdx.y;
+     sdata[tid] = (i < m) && (j < n) ? mat[i * orig_n + j] : 0.0f;
+     __syncthreads();
+     for (unsigned int s = blockDim.y / 2; s > 32; s >>= 1) 
+     {
+         if (tid < s) 
+         {
+             sdata[tid] += sdata[tid + s];
+         }
+         __syncthreads();
+         
+     }
+     if (tid < 32)warpReduce(sdata, tid);
+     if (tid == 0)
+     {
+         tmp[i * tmp_n + blockIdx.y] = sdata[0];
+     }
+ 
+ }
+ __global__ void rowSumRes(double* buf, int m, int tmp_n, double* tmp)
+ {
+     for(int i = 0; i < m; i++)
+     {
+         buf[i] = tmp[i * tmp_n];
+     }
+ }
+ void rowSum(const double* mat, double* buf, int m, int n, double* tmp) 
+ {
+ # ifdef TIME_INFO
+     double t1 = wall_time();
+ # endif
+     int grid_DIM_1D = m;
+     int grid_DIM_2D = (n + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D;
+     int tmp_n = grid_DIM_2D;
+     
+     constexpr dim3 blockSize(1, BLOCK_DIM_1D);
+     dim3 gridSize(grid_DIM_1D, grid_DIM_2D);
+     rowSumKernel<<<gridSize, blockSize>>>(mat, m, n, tmp, n, tmp_n); 
+ 
+     int lastGrid_DIM_2D = grid_DIM_2D;
+     while(lastGrid_DIM_2D > 1)
+     {
+         grid_DIM_2D = (lastGrid_DIM_2D + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D; 
+         dim3 gridSize(grid_DIM_1D, grid_DIM_2D);
+         rowSumKernel<<<gridSize, blockSize>>>(tmp, m, lastGrid_DIM_2D, tmp, tmp_n, tmp_n);
+         lastGrid_DIM_2D = grid_DIM_2D;
+     }
+     rowSumRes<<<1, 1>>>(buf, m, tmp_n, tmp);
+     
+     
+ # ifdef TIME_INFO
+     cudaDeviceSynchronize();
+     
+     double t2 = wall_time();
+     printf("rowSum finished in %lf seconds.\n", t2 - t1);
+ # endif
+ }
