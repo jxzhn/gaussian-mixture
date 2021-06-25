@@ -11,3 +11,5 @@ build/
 tmp_build/
 # jupyter notebook
 .ipynb_checkpoints
+# py cache
+__pycache__

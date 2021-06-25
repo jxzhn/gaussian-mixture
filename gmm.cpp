@@ -126,6 +126,10 @@ void GaussianMixture::initParameter(const double* data, int numData, double* xSu
 # endif
     }
 
+# ifdef GPU_VERSION
+    cudaDeviceSynchronize();
+# endif
+
     double t2 = wall_time();
     printf("initializing finished in %lf seconds\n", t2 - t1);
 }
@@ -228,7 +232,7 @@ void GaussianMixture::fit(const double* data, int numData) {
 
 
     // 对数似然值，比较两次迭代对数似然值变化用于判断迭代是否收敛
-    double logLikelihood = INFINITY;
+    double logLikelihood = -INFINITY;
 
     for (int numIter = 0; numIter < this->maxIter; ++numIter) {
         double t1 = wall_time();

@@ -52,9 +52,9 @@ gmm.gmmFit.argtypes = [
 #     300
 # )
 
-# print(weights)
-# print(means)
-# print(covariances)
+# print('weights:\n', weights)
+# print('means:\n', means)
+# print('covariances:\n', covariances)
 
 data = cupy.load('data/train-images.npy') / 255
 cupy.random.shuffle(data)
