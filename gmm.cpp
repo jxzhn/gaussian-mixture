@@ -78,8 +78,9 @@ GaussianMixture::GaussianMixture(int dim, int nComponent, double* weights, doubl
  * @param numData 见上
  * @param xSubMuBuf 临时存放 xSubMu 的 buffer，大小为 numData 行 dim 列
  * @param meanBuf 临时存放 mean 的 buffer，大小为 dim
+ * @param reduceBuf 并行规约需要的临时空间
  */
-void GaussianMixture::initParameter(const double* data, int numData, double* xSubMuBuf, double* meanBuf) {
+void initParameter(const double* data, int numData, double* xSubMuBuf, double* meanBuf, double* reduceBuf) {
     printf("initializing parameters\n");
     double t1 = wall_time();
     
@@ -93,6 +94,8 @@ void GaussianMixture::initParameter(const double* data, int numData, double* xSu
     // 选择前 nComponent 个数据作为聚类均值 !! 注意，这里没使用随机法，最好把数据 shuffle 好
     cudaMemcpy(this->means, data, sizeof(double) * this->nComponent, cudaMemcpyDeviceToDevice);
 
+    matColMean(data, meanBuf, numData, this->dim, reduceBuf);
+
 # else // GPU_VERSION
 
     // 权重使用均匀分布初始化
@@ -103,9 +106,10 @@ void GaussianMixture::initParameter(const double* data, int numData, double* xSu
     // 选择前 nComponent 个数据作为聚类均值 !! 注意，这里没使用随机法，最好把数据 shuffle 好
     memcpy(this->means, data, sizeof(double) * this->nComponent * this->dim);
 
+    matColMean(data, meanBuf, numData, this->dim);
+
 # endif // GPU_VERSION
 
-    matColMean(data, meanBuf, numData, this->dim);
     matVecRowSub(data, meanBuf, xSubMuBuf, numData, this->dim);
     // 使用所有数据的协方差初始化聚类协方差
     dataCovariance(xSubMuBuf, this->covariances, numData, this->dim);
@@ -133,15 +137,20 @@ void GaussianMixture::initParameter(const double* data, int numData, double* xSu
  * @param lowerMatBuf 临时存放 cholsky 分解得到的下三角矩阵的 buffer，大小为 dim 行 dim 列
  * @param xSubMuBuf 临时存放 x - mu 的 buffer，大小为 numData 行 dim 列
  * @param covSolBuf 临时存放 Ly = x - mu 的解的 buffer，大小为 numData 行 dim 列
+ * @param reduceBuf 并行规约需要的临时空间
  */
-void GaussianMixture::logProbabilityDensity(const double* data, double* logDensity, int numData, double* lowerMatBuf, double* xSubMuBuf, double* covSolBuf) {
+void GaussianMixture::logProbabilityDensity(const double* data, double* logDensity, int numData, double* lowerMatBuf, double* xSubMuBuf, double* covSolBuf, double* reduceBuf) {
     
     for (int c = 0; c < this->nComponent; ++c) {
         // 使用 cholesky 分解得到下三角矩阵
         matCholesky(this->covariances + c * this->dim * this->dim, lowerMatBuf, this->dim);
 
         // 协方差矩阵的行列式的对数等于 cholesky 分解的下三角矩阵对角线上元素的对数求和
+# ifdef GPU_VERSION
+        double covLogDet = 2 * sumLog2Diag(lowerMatBuf, this->dim, reduceBuf);
+# else
         double covLogDet = 2 * sumLog2Diag(lowerMatBuf, this->dim);
+# endif
 
         // 求解 y 满足 Ly = x - mu，则 (x - mu)^T Sigma^(-1) (x - mu) = y^T y
         matVecRowSub(data, this->means + c * this->dim, xSubMuBuf, numData, this->dim);
@@ -183,6 +192,10 @@ void GaussianMixture::fit(const double* data, int numData) {
     cudaMalloc(&logProbSum, sizeof(double) * numData);
     responsibilities = logProb;
 
+    // GPU 规约需要的空间
+    double* reduceBuf;
+    cudaMalloc(&reduceBuf, sizeof(double) * (this->dim > this->nComponent ? this->dim : this->nComponent) * (numData + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D);
+
 # else // GPU_VERSION
 
     // xSubMu 各个函数都用了
@@ -204,10 +217,12 @@ void GaussianMixture::fit(const double* data, int numData) {
     // responsiblities 是簇分配结果，因为 logProb 和它不会同时用到，直接用一块空间就好了
     double* responsibilities = logProb;
 
+    double* reduceBuf = nullptr;
+
 # endif // GPU_VERSION
 
 
-    this->initParameter(data, numData, xSubMu, mean);
+    this->initParameter(data, numData, xSubMu, mean, reduceBuf);
 
 
     // 对数似然值，比较两次迭代对数似然值变化用于判断迭代是否收敛
@@ -219,7 +234,7 @@ void GaussianMixture::fit(const double* data, int numData) {
         double prevLogLikelihood = logLikelihood;
 
         // E 步
-        this->logProbabilityDensity(data, logProb, numData, lowerMat, xSubMu, covSol);
+        this->logProbabilityDensity(data, logProb, numData, lowerMat, xSubMu, covSol, reduceBuf);
         // 概率密度乘上聚类权重，相当于对数相加
         allLog2(this->weights, logWeights, this->nComponent);
         matVecColAddInplace(logProb, logWeights, this->nComponent, numData);
@@ -230,7 +245,11 @@ void GaussianMixture::fit(const double* data, int numData) {
         allExp2Inplace(responsibilities, this->nComponent * numData);
 
         // 计算对数似然值变化
+# ifdef GPU_VERSION
+        logLikelihood = arrMean(logProbSum, numData, reduceBuf);
+# else
         logLikelihood = arrMean(logProbSum, numData);
+# endif
         double diff = abs(logLikelihood - prevLogLikelihood);
 
         printf("iteration %d, log likelihood difference: %f\n", numIter, diff);
@@ -242,7 +261,11 @@ void GaussianMixture::fit(const double* data, int numData) {
 
         // M 步
         // 将簇分配结果按行求和，即得到每个簇被分配到的数据点数量
+# ifdef GPU_VERSION
+        rowSum(responsibilities, this->weights, this->nComponent, numData, reduceBuf);
+# else
         rowSum(responsibilities, this->weights, this->nComponent, numData);
+# endif
         // 将 responsibilities 和 data 做矩阵乘法，即得到 data 在不同聚类下由簇分配系数加权求和之和
         matMul(responsibilities, data, this->means, this->nComponent, numData, this->dim);
         // this->means 各行相应除以各聚类分配到的数据点数量，得到均值
@@ -276,6 +299,8 @@ void GaussianMixture::fit(const double* data, int numData) {
     cudaFree(logWeights);
     cudaFree(logProb);
     cudaFree(logProbSum);
+
+    cudaFree(reduceBuf);
 
 # else // GPU_VERSION
 

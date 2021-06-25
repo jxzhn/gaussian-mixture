@@ -32,8 +32,9 @@ private:
      * @param numData 见上
      * @param xSubMuBuf 临时存放 xSubMu 的 buffer，大小为 numData 行 dim 列
      * @param meanBuf 临时存放 mean 的 buffer，大小为 dim
+     * @param reduceBuf 并行规约需要的临时空间
      */
-    void initParameter(const double* data, int numData, double* xSubMuBuf, double* meanBuf);
+    void initParameter(const double* data, int numData, double* xSubMuBuf, double* meanBuf, double* reduceBuf);
 
     /**
      * @brief 计算所有数据对应各个聚类的对数概率密度
@@ -44,6 +45,7 @@ private:
      * @param lowerMatBuf 临时存放 cholsky 分解得到的下三角矩阵的 buffer，大小为 dim 行 dim 列
      * @param xSubMuBuf 临时存放 x - mu 的 buffer，大小为 numData 行 dim 列
      * @param covSolBuf 临时存放 Ly = x - mu 的解的 buffer，大小为 numData 行 dim 列
+     * @param reduceBuf 并行规约需要的临时空间
      */
     void logProbabilityDensity(const double* data, double* logDensity, int numData, double* lowerMatBuf, double* xSubMuBuf, double* covSolBuf);
 
