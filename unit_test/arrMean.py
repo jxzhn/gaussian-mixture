@@ -11,9 +11,14 @@ gmm_matrix_support.arrMean.argtypes = [
 
 gmm_matrix_support.arrMean.restype = ctypes.c_double
 
-testcase = cupy.random.randn(60000000) * 2.33 + 0.66
-tmp = cupy.random.randn(256000) * 2.33 + 0.66
+n = 60000
+BLOCK_DIM_1D = 256
+
+testcase = cupy.random.randn(60000) * 2.33 + 0.66
+tmp = cupy.random.randn((60000 + BLOCK_DIM_1D - 1) // BLOCK_DIM_1D) * 2.33 + 0.66
+
 answer = cupy.mean(testcase)
+
 output = gmm_matrix_support.arrMean(
     ctypes.cast(testcase.data.ptr, ctypes.POINTER(ctypes.c_double)),
     testcase.shape[0],
