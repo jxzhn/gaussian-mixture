@@ -10,12 +10,16 @@ gmm_matrix_support.matColMean.argtypes = [
     ctypes.c_int,
     ctypes.POINTER(ctypes.c_double),
 ]
+
 row = 60000
 col = 784
+BLOCK_DIM_1D = 256
+
 testcase = cupy.random.randn(row, col) * 2.33 + 0.66
 # print(testcase)
 output = cupy.empty(col, dtype=cupy.float64)
-tmp = cupy.empty(row*col, dtype=cupy.float64)
+tmp = cupy.empty(col * (row + BLOCK_DIM_1D - 1) // BLOCK_DIM_1D, dtype=cupy.float64)
+
 gmm_matrix_support.matColMean(
     ctypes.cast(testcase.data.ptr, ctypes.POINTER(ctypes.c_double)),
     ctypes.cast(output.data.ptr, ctypes.POINTER(ctypes.c_double)),

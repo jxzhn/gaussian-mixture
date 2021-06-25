@@ -10,12 +10,15 @@ gmm_matrix_support.rowSum.argtypes = [
     ctypes.c_int,
     ctypes.POINTER(ctypes.c_double),
 ]
+
 row = 10
 col = 60000
+BLOCK_DIM_1D = 256
+
 testcase = cupy.random.randn(row, col) * 2.33 + 0.66
 output = cupy.empty(row, dtype=cupy.float64)
 answer = cupy.sum(testcase,axis=1)
-tmp = cupy.empty(row*col, dtype=cupy.float64)
+tmp = cupy.empty(row * (col + BLOCK_DIM_1D - 1) // BLOCK_DIM_1D, dtype=cupy.float64)
 
 gmm_matrix_support.rowSum(
     ctypes.cast(testcase.data.ptr, ctypes.POINTER(ctypes.c_double)),
