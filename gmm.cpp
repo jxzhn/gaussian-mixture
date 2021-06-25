@@ -80,7 +80,7 @@ GaussianMixture::GaussianMixture(int dim, int nComponent, double* weights, doubl
  * @param meanBuf 临时存放 mean 的 buffer，大小为 dim
  * @param reduceBuf 并行规约需要的临时空间
  */
-void initParameter(const double* data, int numData, double* xSubMuBuf, double* meanBuf, double* reduceBuf) {
+void GaussianMixture::initParameter(const double* data, int numData, double* xSubMuBuf, double* meanBuf, double* reduceBuf) {
     printf("initializing parameters\n");
     double t1 = wall_time();
     

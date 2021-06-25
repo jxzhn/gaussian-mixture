@@ -47,7 +47,7 @@ private:
      * @param covSolBuf 临时存放 Ly = x - mu 的解的 buffer，大小为 numData 行 dim 列
      * @param reduceBuf 并行规约需要的临时空间
      */
-    void logProbabilityDensity(const double* data, double* logDensity, int numData, double* lowerMatBuf, double* xSubMuBuf, double* covSolBuf);
+    void logProbabilityDensity(const double* data, double* logDensity, int numData, double* lowerMatBuf, double* xSubMuBuf, double* covSolBuf, double* reduceBuf);
 
 public:
     /**
