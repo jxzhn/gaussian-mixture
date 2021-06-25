@@ -790,8 +790,7 @@ __device__ void warpReduce(volatile double* sdata, int tid) {
 }
 __global__ void arrMeanKernel(const double* arr, double* tmp, int n) 
 {
-    extern __shared__ double shared_data[];
-    double* sdata = (double*)shared_data;
+    __shared__ double sdata[BLOCK_DIM_1D];
     int tid = threadIdx.x;
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     sdata[tid] = i < n ? arr[i] : 0.0f;
@@ -818,16 +817,16 @@ double arrMean(const double* arr, int n, double* tmp)
     double t1 = wall_time();
 # endif
     int numBlocks = (n + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D; 
-    arrMeanKernel<<<numBlocks, BLOCK_DIM_1D, sizeof(double) * BLOCK_DIM_1D>>>(arr, tmp, n);
+    arrMeanKernel<<<numBlocks, BLOCK_DIM_1D>>>(arr, tmp, n);
     int lastNumBlocks = numBlocks;
     while(lastNumBlocks > BLOCK_DIM_1D)
     {
         numBlocks = (lastNumBlocks + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D; 
-        arrMeanKernel<<<numBlocks, BLOCK_DIM_1D, sizeof(double) * BLOCK_DIM_1D>>>(tmp, tmp, lastNumBlocks);
+        arrMeanKernel<<<numBlocks, BLOCK_DIM_1D>>>(tmp, tmp, lastNumBlocks);
         lastNumBlocks = numBlocks;
     }
     if(lastNumBlocks > 1){
-        arrMeanKernel<<<1, BLOCK_DIM_1D, sizeof(double) * BLOCK_DIM_1D>>>(tmp, tmp, lastNumBlocks);
+        arrMeanKernel<<<1, BLOCK_DIM_1D>>>(tmp, tmp, lastNumBlocks);
     }
     double res;
     cudaMemcpy(&res, tmp, sizeof(double), cudaMemcpyDeviceToHost);
