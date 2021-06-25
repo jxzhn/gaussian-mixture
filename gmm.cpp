@@ -10,6 +10,7 @@
 # include "gmm.hpp"
 # include "gmm_matrix_support.h"
 # include <stdio.h>
+# include <math.h>
 # include <sys/time.h>
 
 inline double wall_time() {
@@ -26,7 +27,6 @@ inline double wall_time() {
 
 # include <stdlib.h>
 # include <memory.h>
-# include <math.h>
 
 # endif // GPU_VERSION
 
@@ -87,12 +87,14 @@ void GaussianMixture::initParameter(const double* data, int numData, double* xSu
 # ifdef GPU_VERSION
 
     // 权重使用均匀分布初始化
-    // 使用函数完成，方便操作 GPU 显存
-    allMulInplace(this->weights, 0.0, this->nComponent);
-    allAddInplace(this->weights, 1.0 / this->nComponent, this->nComponent);
+    double tmpWeights[this->nComponent];
+    for (int c = 0; c < this->nComponent; ++c) {
+        tmpWeights[c] = 1.0 / this->nComponent;
+    }
+    cudaMemcpy(this->weights, tmpWeights, sizeof(double) * this->nComponent, cudaMemcpyHostToDevice);
 
     // 选择前 nComponent 个数据作为聚类均值 !! 注意，这里没使用随机法，最好把数据 shuffle 好
-    cudaMemcpy(this->means, data, sizeof(double) * this->nComponent, cudaMemcpyDeviceToDevice);
+    cudaMemcpy(this->means, data, sizeof(double) * this->nComponent * this->dim, cudaMemcpyDeviceToDevice);
 
     matColMean(data, meanBuf, numData, this->dim, reduceBuf);
 
@@ -282,6 +284,10 @@ void GaussianMixture::fit(const double* data, int numData) {
             // 加上 minCovar 以保证最小方差
             matDiagAddInplace(this->covariances + c * this->dim * this->dim, this->minCovar, this->dim);
         }
+
+# ifdef GPU_VERSION
+        cudaDeviceSynchronize();
+# endif
 
         double t2 = wall_time();
         printf("iteration %d finished in %lf seconds\n", numIter, t2 - t1);
